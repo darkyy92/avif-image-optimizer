@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
 import { glob } from 'glob';
+import { minimatch } from 'minimatch';
 import { program } from 'commander';
 
 /**
@@ -19,7 +20,8 @@ const DEFAULT_CONFIG = {
   effort: 6,
   outputDir: null, // Same directory as input by default
   preserveOriginal: true,
-  recursive: false
+  recursive: false,
+  exclude: []
 };
 
 /**
@@ -163,6 +165,24 @@ async function findImageFiles(pattern, recursive) {
 }
 
 /**
+ * Filter files using exclusion glob patterns
+ */
+function applyExclusions(files, patterns) {
+  if (!patterns || patterns.length === 0) {
+    return { files, excludedCount: 0 };
+  }
+
+  let excludedCount = 0;
+  const filtered = files.filter(file => {
+    const isExcluded = patterns.some(pattern => minimatch(file, pattern, { matchBase: true }));
+    if (isExcluded) excludedCount++;
+    return !isExcluded;
+  });
+
+  return { files: filtered, excludedCount };
+}
+
+/**
  * Main conversion function
  */
 async function optimizeImages(input, options) {
@@ -177,8 +197,13 @@ async function optimizeImages(input, options) {
   console.log('');
   
   // Find image files
-  const imageFiles = await findImageFiles(input, config.recursive);
-  
+  let imageFiles = await findImageFiles(input, config.recursive);
+  const { files: filteredFiles, excludedCount } = applyExclusions(imageFiles, config.exclude);
+  imageFiles = filteredFiles;
+  if (excludedCount > 0) {
+    console.log(`Excluded ${excludedCount} file(s) based on patterns`);
+  }
+
   if (imageFiles.length === 0) {
     console.log('⚠️  No supported image files found matching the pattern');
     console.log(`   Supported formats: ${SUPPORTED_FORMATS.join(', ')}`);
@@ -225,6 +250,10 @@ program
   .option('-e, --effort <number>', 'Compression effort (1-10)', (value) => parseInt(value), DEFAULT_CONFIG.effort)
   .option('-o, --output-dir <path>', 'Output directory (default: same as input)')
   .option('-r, --recursive', 'Search recursively in subdirectories')
+  .option('-x, --exclude <pattern>', 'Glob pattern to exclude (can be used multiple times)', (val, acc) => {
+    acc.push(val);
+    return acc;
+  }, [])
   .option('--no-preserve-original', 'Delete original files after conversion')
   .action(async (input, options) => {
     try {
@@ -235,7 +264,8 @@ program
         effort: options.effort,
         outputDir: options.outputDir,
         preserveOriginal: options.preserveOriginal,
-        recursive: options.recursive
+        recursive: options.recursive,
+        exclude: options.exclude
       });
     } catch (error) {
       console.error('❌ Optimization failed:', error.message);
@@ -251,7 +281,8 @@ Examples:
   $ avif-optimizer ./images --recursive
   $ avif-optimizer "*.{jpg,png}" --max-width 800
   $ avif-optimizer ./photos --output-dir ./optimized
-  
+  $ avif-optimizer ./images --exclude "*.thumb.*"
+
 Supported formats: ${SUPPORTED_FORMATS.join(', ')}
 `);
 
