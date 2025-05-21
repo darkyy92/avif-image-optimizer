@@ -1,0 +1,50 @@
+{
+  "name": "avif-image-optimizer",
+  "version": "1.0.0",
+  "description": "Fast, modern image optimizer that converts JPG, PNG and other formats to AVIF with intelligent resizing and compression",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "avif-optimizer": "./src/cli.js",
+    "avif-opt": "./src/cli.js"
+  },
+  "scripts": {
+    "start": "node src/cli.js",
+    "test": "echo \"No tests specified yet\" && exit 0",
+    "build": "echo \"No build process needed\" && exit 0"
+  },
+  "keywords": [
+    "avif",
+    "image",
+    "optimization",
+    "converter",
+    "compression",
+    "webp",
+    "jpg",
+    "png",
+    "cli",
+    "performance",
+    "web"
+  ],
+  "author": "Joel",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joelkek/avif-image-optimizer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/joelkek/avif-image-optimizer/issues"
+  },
+  "homepage": "https://github.com/joelkek/avif-image-optimizer#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "sharp": "^0.33.5",
+    "commander": "^12.1.0",
+    "glob": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.5"
+  }
+}
