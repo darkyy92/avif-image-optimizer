@@ -66,6 +66,7 @@ function getOptimizedDimensions(width, height, maxWidth, maxHeight) {
  */
 async function convertImageToAvif(inputPath, config) {
   try {
+    const startTime = process.hrtime.bigint();
     const inputDir = path.dirname(inputPath);
     const inputExt = path.extname(inputPath).toLowerCase();
     const inputName = path.basename(inputPath, inputExt);
@@ -103,6 +104,9 @@ async function convertImageToAvif(inputPath, config) {
         chromaSubsampling: '4:2:0'
       })
       .toFile(outputPath);
+
+    const endTime = process.hrtime.bigint();
+    const processingTime = Number(endTime - startTime) / 1e6; // in milliseconds
     
     // Get output file size
     const outputStats = fs.statSync(outputPath);
@@ -116,6 +120,7 @@ async function convertImageToAvif(inputPath, config) {
     
     console.log(`✅ ${path.basename(inputPath)} → ${path.basename(outputPath)}`);
     console.log(`   Size: ${(originalSize / 1024).toFixed(1)}KB → ${(outputSize / 1024).toFixed(1)}KB (${sizeSavings}% savings)${dimensionChange}`);
+    console.log(`   Time: ${processingTime.toFixed(0)}ms`);
     
     return {
       inputPath,
@@ -123,7 +128,8 @@ async function convertImageToAvif(inputPath, config) {
       originalSize,
       outputSize,
       sizeSavings: parseFloat(sizeSavings),
-      dimensionChange: dimensionChange !== ''
+      dimensionChange: dimensionChange !== '',
+      processingTime
     };
     
   } catch (error) {
@@ -195,20 +201,24 @@ async function optimizeImages(input, options) {
       results.push(result);
     }
   }
-  
+
   // Summary
   if (results.length > 0) {
     console.log('\n📊 Conversion Summary');
     console.log('=====================');
-    
+
     const totalOriginalSize = results.reduce((sum, r) => sum + r.originalSize, 0);
     const totalOutputSize = results.reduce((sum, r) => sum + r.outputSize, 0);
     const totalSavings = ((totalOriginalSize - totalOutputSize) / totalOriginalSize * 100).toFixed(1);
     const resizedCount = results.filter(r => r.dimensionChange).length;
-    
+    const totalProcessingTime = results.reduce((sum, r) => sum + r.processingTime, 0);
+    const averageTime = totalProcessingTime / results.length;
+
     console.log(`✅ Successfully converted: ${results.length} files`);
     console.log(`📏 Resized images: ${resizedCount} files`);
     console.log(`💾 Total size savings: ${(totalOriginalSize / 1024).toFixed(1)}KB → ${(totalOutputSize / 1024).toFixed(1)}KB (${totalSavings}%)`);
+    console.log(`⏱️  Total processing time: ${totalProcessingTime.toFixed(0)}ms`);
+    console.log(`📈 Average time per file: ${averageTime.toFixed(0)}ms`);
     console.log(`🌐 Modern format: All images now use AVIF (93%+ browser support)`);
   }
 }

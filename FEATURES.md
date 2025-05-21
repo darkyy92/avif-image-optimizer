@@ -16,7 +16,7 @@ This file contains potential features and enhancements for avif-image-optimizer,
 - [ ] **CSV export** of conversion statistics
 - [ ] **Before/after image comparison** in terminal (using image-to-ascii)
 - [ ] **File size histogram** - Visual representation of size savings
-- [ ] **Processing time tracking** and reporting
+- [x] **Processing time tracking** and reporting
 
 ### File Handling
 - [ ] **Exclude patterns** (`--exclude "*.thumb.*"`) - Skip certain files
