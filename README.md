@@ -13,6 +13,7 @@
 - 📁 **Batch Processing**: Process single files, directories, or glob patterns
 - ⚡ **High Performance**: Uses Sharp library for lightning-fast processing
 - 📊 **Detailed Reporting**: Shows file size savings and dimension changes
+- 🚫 **Exclude Patterns**: Skip files matching glob patterns during batch runs
 - 🌐 **Web Optimized**: AVIF format with 93%+ browser support and 50-90% size reduction
 
 ## 🚀 Quick Start
@@ -61,6 +62,7 @@ avif-optimizer <input> [options]
 | `--effort` | `-e` | Compression effort (1-10) | 6 |
 | `--output-dir` | `-o` | Output directory | Same as input |
 | `--recursive` | `-r` | Search subdirectories | false |
+| `--exclude` | `-x` | Glob pattern(s) to exclude | None |
 | `--no-preserve-original` | | Delete originals after conversion | false |
 
 #### Examples
@@ -80,6 +82,9 @@ avif-optimizer batch/*.png --effort 3
 
 # Convert without preserving originals
 avif-optimizer temp-images/ --no-preserve-original
+
+# Exclude thumbnail files
+avif-optimizer ./images --exclude "*.thumb.*"
 ```
 
 ### Programmatic API

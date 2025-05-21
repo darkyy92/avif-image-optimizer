@@ -18,7 +18,8 @@ export const DEFAULT_CONFIG = {
   effort: 6,
   outputDir: null,
   preserveOriginal: true,
-  recursive: false
+  recursive: false,
+  exclude: []
 };
 
 // Supported formats
