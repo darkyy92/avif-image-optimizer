@@ -5,7 +5,7 @@ This file contains potential features and enhancements for avif-image-optimizer,
 ## Quick Wins (1-2 hours with AI assistance)
 
 ### CLI Enhancements
-- [ ] **Dry run mode** (`--dry-run`) - Show what would be processed without converting
+- [x] **Dry run mode** (`--dry-run`) - Show what would be processed without converting
 - [ ] **Verbose/quiet modes** (`--verbose`, `--quiet`) - Control output verbosity
 - [ ] **Progress bar** for batch operations using a simple CLI progress library
 - [ ] **JSON output mode** (`--json`) - Output statistics as JSON for scripting

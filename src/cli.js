@@ -19,7 +19,8 @@ const DEFAULT_CONFIG = {
   effort: 6,
   outputDir: null, // Same directory as input by default
   preserveOriginal: true,
-  recursive: false
+  recursive: false,
+  dryRun: false
 };
 
 /**
@@ -133,6 +134,53 @@ async function convertImageToAvif(inputPath, config) {
 }
 
 /**
+ * Analyze a single image file without converting (dry run)
+ */
+async function analyzeImageFile(inputPath, config) {
+  try {
+    const inputDir = path.dirname(inputPath);
+    const inputExt = path.extname(inputPath).toLowerCase();
+    const inputName = path.basename(inputPath, inputExt);
+    const outputDir = config.outputDir || inputDir;
+    const outputPath = path.join(outputDir, `${inputName}.avif`);
+
+    const metadata = await sharp(inputPath).metadata();
+    const { width: originalWidth, height: originalHeight } = metadata;
+    const originalStats = fs.statSync(inputPath);
+    const originalSize = originalStats.size;
+
+    const { width: newWidth, height: newHeight } = getOptimizedDimensions(
+      originalWidth,
+      originalHeight,
+      config.maxWidth,
+      config.maxHeight
+    );
+
+    const pixelRatio = (newWidth * newHeight) / (originalWidth * originalHeight);
+    const estimatedSize = Math.round(originalSize * pixelRatio * 0.6);
+    const sizeSavings = ((originalSize - estimatedSize) / originalSize * 100).toFixed(1);
+    const dimensionChange = (originalWidth !== newWidth || originalHeight !== newHeight)
+      ? ` (${originalWidth}x${originalHeight} → ${newWidth}x${newHeight})`
+      : '';
+
+    console.log(`🔎 ${path.basename(inputPath)} → ${path.basename(outputPath)}`);
+    console.log(`   Size: ${(originalSize / 1024).toFixed(1)}KB → ${(estimatedSize / 1024).toFixed(1)}KB (${sizeSavings}% savings)${dimensionChange}`);
+
+    return {
+      inputPath,
+      outputPath,
+      originalSize,
+      outputSize: estimatedSize,
+      sizeSavings: parseFloat(sizeSavings),
+      dimensionChange: dimensionChange !== ''
+    };
+  } catch (error) {
+    console.error(`❌ Error analyzing ${inputPath}:`, error.message);
+    return null;
+  }
+}
+
+/**
  * Find supported image files based on pattern
  */
 async function findImageFiles(pattern, recursive) {
@@ -167,13 +215,16 @@ async function findImageFiles(pattern, recursive) {
  */
 async function optimizeImages(input, options) {
   const config = { ...DEFAULT_CONFIG, ...options };
-  
+
   console.log('🖼️  AVIF Image Optimizer');
   console.log('========================');
   console.log(`Supported formats: ${SUPPORTED_FORMATS.join(', ')}`);
   console.log(`Max dimensions: ${config.maxWidth}x${config.maxHeight}px`);
   console.log(`Quality: ${config.quality}`);
   console.log(`Effort: ${config.effort}`);
+  if (config.dryRun) {
+    console.log('Mode: Dry run (no files will be written)');
+  }
   console.log('');
   
   // Find image files
@@ -185,12 +236,14 @@ async function optimizeImages(input, options) {
     return;
   }
   
-  console.log(`Found ${imageFiles.length} image file(s) to convert:\n`);
-  
+  console.log(`Found ${imageFiles.length} image file(s) to process:\n`);
+
   // Convert files
   const results = [];
   for (const imageFile of imageFiles) {
-    const result = await convertImageToAvif(imageFile, config);
+    const result = config.dryRun
+      ? await analyzeImageFile(imageFile, config)
+      : await convertImageToAvif(imageFile, config);
     if (result) {
       results.push(result);
     }
@@ -198,7 +251,7 @@ async function optimizeImages(input, options) {
   
   // Summary
   if (results.length > 0) {
-    console.log('\n📊 Conversion Summary');
+    console.log(config.dryRun ? '\n📊 Dry Run Summary' : '\n📊 Conversion Summary');
     console.log('=====================');
     
     const totalOriginalSize = results.reduce((sum, r) => sum + r.originalSize, 0);
@@ -206,7 +259,7 @@ async function optimizeImages(input, options) {
     const totalSavings = ((totalOriginalSize - totalOutputSize) / totalOriginalSize * 100).toFixed(1);
     const resizedCount = results.filter(r => r.dimensionChange).length;
     
-    console.log(`✅ Successfully converted: ${results.length} files`);
+    console.log(`✅ Successfully ${config.dryRun ? 'analyzed' : 'converted'}: ${results.length} files`);
     console.log(`📏 Resized images: ${resizedCount} files`);
     console.log(`💾 Total size savings: ${(totalOriginalSize / 1024).toFixed(1)}KB → ${(totalOutputSize / 1024).toFixed(1)}KB (${totalSavings}%)`);
     console.log(`🌐 Modern format: All images now use AVIF (93%+ browser support)`);
@@ -225,6 +278,7 @@ program
   .option('-e, --effort <number>', 'Compression effort (1-10)', (value) => parseInt(value), DEFAULT_CONFIG.effort)
   .option('-o, --output-dir <path>', 'Output directory (default: same as input)')
   .option('-r, --recursive', 'Search recursively in subdirectories')
+  .option('-d, --dry-run', 'Show what files would be processed without converting')
   .option('--no-preserve-original', 'Delete original files after conversion')
   .action(async (input, options) => {
     try {
@@ -235,7 +289,8 @@ program
         effort: options.effort,
         outputDir: options.outputDir,
         preserveOriginal: options.preserveOriginal,
-        recursive: options.recursive
+        recursive: options.recursive,
+        dryRun: options.dryRun
       });
     } catch (error) {
       console.error('❌ Optimization failed:', error.message);
@@ -251,11 +306,12 @@ Examples:
   $ avif-optimizer ./images --recursive
   $ avif-optimizer "*.{jpg,png}" --max-width 800
   $ avif-optimizer ./photos --output-dir ./optimized
-  
+  $ avif-optimizer ./images --dry-run
+
 Supported formats: ${SUPPORTED_FORMATS.join(', ')}
 `);
 
 // Run the program
 program.parse();
 
-export { optimizeImages, convertImageToAvif };
+export { optimizeImages, convertImageToAvif, analyzeImageFile };
