@@ -19,7 +19,8 @@ const DEFAULT_CONFIG = {
   effort: 6,
   outputDir: null, // Same directory as input by default
   preserveOriginal: true,
-  recursive: false
+  recursive: false,
+  json: false
 };
 
 /**
@@ -110,20 +111,27 @@ async function convertImageToAvif(inputPath, config) {
     
     // Calculate savings
     const sizeSavings = ((originalSize - outputSize) / originalSize * 100).toFixed(1);
-    const dimensionChange = (originalWidth !== newWidth || originalHeight !== newHeight) 
-      ? ` (${originalWidth}x${originalHeight} → ${newWidth}x${newHeight})`
-      : '';
-    
-    console.log(`✅ ${path.basename(inputPath)} → ${path.basename(outputPath)}`);
-    console.log(`   Size: ${(originalSize / 1024).toFixed(1)}KB → ${(outputSize / 1024).toFixed(1)}KB (${sizeSavings}% savings)${dimensionChange}`);
-    
+    const dimensionChange = originalWidth !== newWidth || originalHeight !== newHeight;
+
+    if (!config.json) {
+      const changeInfo = dimensionChange
+        ? ` (${originalWidth}x${originalHeight} → ${newWidth}x${newHeight})`
+        : '';
+      console.log(`✅ ${path.basename(inputPath)} → ${path.basename(outputPath)}`);
+      console.log(`   Size: ${(originalSize / 1024).toFixed(1)}KB → ${(outputSize / 1024).toFixed(1)}KB (${sizeSavings}% savings)${changeInfo}`);
+    }
+
     return {
       inputPath,
       outputPath,
       originalSize,
       outputSize,
       sizeSavings: parseFloat(sizeSavings),
-      dimensionChange: dimensionChange !== ''
+      originalWidth,
+      originalHeight,
+      newWidth,
+      newHeight,
+      resized: dimensionChange
     };
     
   } catch (error) {
@@ -168,24 +176,32 @@ async function findImageFiles(pattern, recursive) {
 async function optimizeImages(input, options) {
   const config = { ...DEFAULT_CONFIG, ...options };
   
-  console.log('🖼️  AVIF Image Optimizer');
-  console.log('========================');
-  console.log(`Supported formats: ${SUPPORTED_FORMATS.join(', ')}`);
-  console.log(`Max dimensions: ${config.maxWidth}x${config.maxHeight}px`);
-  console.log(`Quality: ${config.quality}`);
-  console.log(`Effort: ${config.effort}`);
-  console.log('');
+  if (!config.json) {
+    console.log('🖼️  AVIF Image Optimizer');
+    console.log('========================');
+    console.log(`Supported formats: ${SUPPORTED_FORMATS.join(', ')}`);
+    console.log(`Max dimensions: ${config.maxWidth}x${config.maxHeight}px`);
+    console.log(`Quality: ${config.quality}`);
+    console.log(`Effort: ${config.effort}`);
+    console.log('');
+  }
   
   // Find image files
   const imageFiles = await findImageFiles(input, config.recursive);
   
   if (imageFiles.length === 0) {
-    console.log('⚠️  No supported image files found matching the pattern');
-    console.log(`   Supported formats: ${SUPPORTED_FORMATS.join(', ')}`);
+    if (!config.json) {
+      console.log('⚠️  No supported image files found matching the pattern');
+      console.log(`   Supported formats: ${SUPPORTED_FORMATS.join(', ')}`);
+    } else {
+      console.log(JSON.stringify({ error: 'No supported image files found' }));
+    }
     return;
   }
-  
-  console.log(`Found ${imageFiles.length} image file(s) to convert:\n`);
+
+  if (!config.json) {
+    console.log(`Found ${imageFiles.length} image file(s) to convert:\n`);
+  }
   
   // Convert files
   const results = [];
@@ -198,18 +214,28 @@ async function optimizeImages(input, options) {
   
   // Summary
   if (results.length > 0) {
-    console.log('\n📊 Conversion Summary');
-    console.log('=====================');
-    
     const totalOriginalSize = results.reduce((sum, r) => sum + r.originalSize, 0);
     const totalOutputSize = results.reduce((sum, r) => sum + r.outputSize, 0);
     const totalSavings = ((totalOriginalSize - totalOutputSize) / totalOriginalSize * 100).toFixed(1);
-    const resizedCount = results.filter(r => r.dimensionChange).length;
-    
-    console.log(`✅ Successfully converted: ${results.length} files`);
-    console.log(`📏 Resized images: ${resizedCount} files`);
-    console.log(`💾 Total size savings: ${(totalOriginalSize / 1024).toFixed(1)}KB → ${(totalOutputSize / 1024).toFixed(1)}KB (${totalSavings}%)`);
-    console.log(`🌐 Modern format: All images now use AVIF (93%+ browser support)`);
+    const resizedCount = results.filter(r => r.resized).length;
+
+    if (!config.json) {
+      console.log('\n📊 Conversion Summary');
+      console.log('=====================');
+      console.log(`✅ Successfully converted: ${results.length} files`);
+      console.log(`📏 Resized images: ${resizedCount} files`);
+      console.log(`💾 Total size savings: ${(totalOriginalSize / 1024).toFixed(1)}KB → ${(totalOutputSize / 1024).toFixed(1)}KB (${totalSavings}%)`);
+      console.log(`🌐 Modern format: All images now use AVIF (93%+ browser support)`);
+    } else {
+      const summary = {
+        converted: results.length,
+        resized: resizedCount,
+        totalOriginalSize,
+        totalOutputSize,
+        totalSavings: parseFloat(totalSavings)
+      };
+      console.log(JSON.stringify({ summary, results }, null, 2));
+    }
   }
 }
 
@@ -225,6 +251,7 @@ program
   .option('-e, --effort <number>', 'Compression effort (1-10)', (value) => parseInt(value), DEFAULT_CONFIG.effort)
   .option('-o, --output-dir <path>', 'Output directory (default: same as input)')
   .option('-r, --recursive', 'Search recursively in subdirectories')
+  .option('--json', 'Output conversion results as JSON')
   .option('--no-preserve-original', 'Delete original files after conversion')
   .action(async (input, options) => {
     try {
@@ -235,7 +262,8 @@ program
         effort: options.effort,
         outputDir: options.outputDir,
         preserveOriginal: options.preserveOriginal,
-        recursive: options.recursive
+        recursive: options.recursive,
+        json: options.json || false
       });
     } catch (error) {
       console.error('❌ Optimization failed:', error.message);
