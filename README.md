@@ -61,6 +61,7 @@ avif-optimizer <input> [options]
 | `--effort` | `-e` | Compression effort (1-10) | 6 |
 | `--output-dir` | `-o` | Output directory | Same as input |
 | `--recursive` | `-r` | Search subdirectories | false |
+| `--force` | `-f` | Reprocess even if output exists | false |
 | `--no-preserve-original` | | Delete originals after conversion | false |
 
 #### Examples
@@ -80,6 +81,9 @@ avif-optimizer batch/*.png --effort 3
 
 # Convert without preserving originals
 avif-optimizer temp-images/ --no-preserve-original
+
+# Force reprocess even if AVIF files exist
+avif-optimizer ./images --force
 ```
 
 ### Programmatic API

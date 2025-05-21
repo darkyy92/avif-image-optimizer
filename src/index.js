@@ -18,7 +18,8 @@ export const DEFAULT_CONFIG = {
   effort: 6,
   outputDir: null,
   preserveOriginal: true,
-  recursive: false
+  recursive: false,
+  force: false
 };
 
 // Supported formats
@@ -44,7 +45,7 @@ export async function batchConvert(files, options = {}) {
   
   for (const file of files) {
     const result = await convertImageToAvif(file, config);
-    if (result) {
+    if (result && !result.skipped) {
       results.push(result);
     }
   }
