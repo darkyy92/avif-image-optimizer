@@ -30,12 +30,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/joelkek/avif-image-optimizer.git"
+    "url": "git+https://github.com/darkyy92/avif-image-optimizer.git"
   },
   "bugs": {
-    "url": "https://github.com/joelkek/avif-image-optimizer/issues"
+    "url": "https://github.com/darkyy92/avif-image-optimizer/issues"
   },
-  "homepage": "https://github.com/joelkek/avif-image-optimizer#readme",
+  "homepage": "https://github.com/darkyy92/avif-image-optimizer#readme",
   "engines": {
     "node": ">=18.0.0"
   },

@@ -3,7 +3,7 @@
 > Fast, modern image optimizer that converts JPG, PNG and other formats to AVIF with intelligent resizing and compression.
 
 [![npm version](https://badge.fury.io/js/avif-image-optimizer.svg)](https://badge.fury.io/js/avif-image-optimizer)
-[![Node.js CI](https://github.com/joelkek/avif-image-optimizer/workflows/Node.js%20CI/badge.svg)](https://github.com/joelkek/avif-image-optimizer/actions)
+[![Node.js CI](https://github.com/darkyy92/avif-image-optimizer/workflows/Node.js%20CI/badge.svg)](https://github.com/darkyy92/avif-image-optimizer/actions)
 
 ## ✨ Features
 
