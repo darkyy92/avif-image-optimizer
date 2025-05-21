@@ -62,6 +62,7 @@ avif-optimizer <input> [options]
 | `--output-dir` | `-o` | Output directory | Same as input |
 | `--recursive` | `-r` | Search subdirectories | false |
 | `--no-preserve-original` | | Delete originals after conversion | false |
+| `--force` | `-f` | Overwrite existing .avif files without prompting | false |
 
 #### Examples
 
@@ -80,6 +81,9 @@ avif-optimizer batch/*.png --effort 3
 
 # Convert without preserving originals
 avif-optimizer temp-images/ --no-preserve-original
+
+# Overwrite existing AVIF files
+avif-optimizer ./images --force
 ```
 
 ### Programmatic API
