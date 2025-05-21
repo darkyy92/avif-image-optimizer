@@ -19,7 +19,8 @@ const DEFAULT_CONFIG = {
   effort: 6,
   outputDir: null, // Same directory as input by default
   preserveOriginal: true,
-  recursive: false
+  recursive: false,
+  force: false
 };
 
 /**
@@ -71,6 +72,16 @@ async function convertImageToAvif(inputPath, config) {
     const inputName = path.basename(inputPath, inputExt);
     const outputDir = config.outputDir || inputDir;
     const outputPath = path.join(outputDir, `${inputName}.avif`);
+
+    // Skip if output exists and is up-to-date
+    if (!config.force && fs.existsSync(outputPath)) {
+      const inputMTime = fs.statSync(inputPath).mtimeMs;
+      const outputMTime = fs.statSync(outputPath).mtimeMs;
+      if (outputMTime >= inputMTime) {
+        console.log(`⏭️  ${path.basename(inputPath)} already converted, skipping`);
+        return { skipped: true };
+      }
+    }
     
     // Ensure output directory exists
     if (!fs.existsSync(outputDir)) {
@@ -123,7 +134,8 @@ async function convertImageToAvif(inputPath, config) {
       originalSize,
       outputSize,
       sizeSavings: parseFloat(sizeSavings),
-      dimensionChange: dimensionChange !== ''
+      dimensionChange: dimensionChange !== '',
+      skipped: false
     };
     
   } catch (error) {
@@ -186,18 +198,23 @@ async function optimizeImages(input, options) {
   }
   
   console.log(`Found ${imageFiles.length} image file(s) to convert:\n`);
-  
+
   // Convert files
   const results = [];
+  let skippedCount = 0;
   for (const imageFile of imageFiles) {
     const result = await convertImageToAvif(imageFile, config);
     if (result) {
-      results.push(result);
+      if (result.skipped) {
+        skippedCount++;
+      } else {
+        results.push(result);
+      }
     }
   }
-  
+
   // Summary
-  if (results.length > 0) {
+  if (results.length > 0 || skippedCount > 0) {
     console.log('\n📊 Conversion Summary');
     console.log('=====================');
     
@@ -207,6 +224,9 @@ async function optimizeImages(input, options) {
     const resizedCount = results.filter(r => r.dimensionChange).length;
     
     console.log(`✅ Successfully converted: ${results.length} files`);
+    if (skippedCount > 0) {
+      console.log(`⏭️  Skipped already converted: ${skippedCount} files`);
+    }
     console.log(`📏 Resized images: ${resizedCount} files`);
     console.log(`💾 Total size savings: ${(totalOriginalSize / 1024).toFixed(1)}KB → ${(totalOutputSize / 1024).toFixed(1)}KB (${totalSavings}%)`);
     console.log(`🌐 Modern format: All images now use AVIF (93%+ browser support)`);
@@ -225,6 +245,7 @@ program
   .option('-e, --effort <number>', 'Compression effort (1-10)', (value) => parseInt(value), DEFAULT_CONFIG.effort)
   .option('-o, --output-dir <path>', 'Output directory (default: same as input)')
   .option('-r, --recursive', 'Search recursively in subdirectories')
+  .option('-f, --force', 'Reprocess even if output file exists')
   .option('--no-preserve-original', 'Delete original files after conversion')
   .action(async (input, options) => {
     try {
@@ -235,7 +256,8 @@ program
         effort: options.effort,
         outputDir: options.outputDir,
         preserveOriginal: options.preserveOriginal,
-        recursive: options.recursive
+        recursive: options.recursive,
+        force: options.force
       });
     } catch (error) {
       console.error('❌ Optimization failed:', error.message);
