@@ -10,10 +10,14 @@ npm install
 
 # Test CLI locally
 node src/cli.js --help
-node src/cli.js <test-image> --quality 80
+node src/cli.js test-images/file_example_JPG_500kB.jpg --quality 80
+
+# Test with different formats
+node src/cli.js test-images/ --recursive
+node src/cli.js test-images/file_example_PNG_500kB.png --max-width 800
 
 # Test programmatic API
-node -e "import('./src/index.js').then(m => m.optimizeToAvif('./test.jpg'))"
+node -e "import('./src/index.js').then(m => m.optimizeToAvif('test-images/'))"
 ```
 
 ## Architecture Overview
@@ -63,8 +67,18 @@ Uses a layered approach: `DEFAULT_CONFIG` → CLI options → programmatic overr
 - Check file size reduction statistics accuracy
 - Test recursive directory processing with glob patterns
 
+## Test Files Available
+The `test-images/` directory contains sample files for testing:
+- `file_example_JPG_500kB.jpg` - JPEG format test file
+- `file_example_PNG_500kB.png` - PNG format test file  
+- `file_example_TIFF_1MB.tiff` - TIFF format test file
+- `file_example_WEBP_500kB.webp` - WebP format test file
+
+Use these files to test new features, validate processing pipeline changes, and verify format support.
+
 ## Notes for AI Agents
 - This tool processes images using the Sharp library for high-performance operations
 - The codebase follows ES modules (type: "module" in package.json)
 - Both CLI and programmatic interfaces share the same core processing functions
 - Configuration is designed to be layered and overrideable at multiple levels
+- Use the test-images/ directory for safe testing without needing external files
