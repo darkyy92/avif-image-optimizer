@@ -63,6 +63,8 @@ avif-optimizer <input> [options]
 | `--recursive` | `-r` | Search subdirectories | false |
 | `--no-preserve-original` | | Delete originals after conversion | false |
 
+All numeric options are validated. Providing a `--quality` value outside `1-100` or an `--effort` outside `1-10` will result in a descriptive error message.
+
 #### Examples
 
 ```bash

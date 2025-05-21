@@ -27,6 +27,32 @@ const DEFAULT_CONFIG = {
  */
 const SUPPORTED_FORMATS = ['.jpg', '.jpeg', '.png', '.webp', '.tiff', '.tif'];
 
+// Validation helpers
+function validateNumberInRange(value, min, max, name) {
+  const num = parseInt(value, 10);
+  if (isNaN(num) || num < min || num > max) {
+    throw new Error(`${name} must be a number between ${min} and ${max}`);
+  }
+  return num;
+}
+
+function validateInputPath(input) {
+  const hasGlob = /[*?\[\]]/.test(input);
+  if (!hasGlob && !fs.existsSync(input)) {
+    throw new Error(`Input path "${input}" does not exist`);
+  }
+}
+
+function validateOutputDir(outputDir) {
+  if (!outputDir) return;
+  try {
+    fs.mkdirSync(outputDir, { recursive: true });
+    fs.accessSync(outputDir, fs.constants.W_OK);
+  } catch {
+    throw new Error(`Output directory "${outputDir}" is not writable`);
+  }
+}
+
 /**
  * Get optimized dimensions while maintaining aspect ratio
  */
@@ -221,13 +247,15 @@ program
   .argument('<input>', 'Input image file, directory, or glob pattern')
   .option('-w, --max-width <pixels>', 'Maximum width in pixels', (value) => parseInt(value), DEFAULT_CONFIG.maxWidth)
   .option('-h, --max-height <pixels>', 'Maximum height in pixels', (value) => parseInt(value), DEFAULT_CONFIG.maxHeight)
-  .option('-q, --quality <number>', 'AVIF quality (1-100)', (value) => parseInt(value), DEFAULT_CONFIG.quality)
-  .option('-e, --effort <number>', 'Compression effort (1-10)', (value) => parseInt(value), DEFAULT_CONFIG.effort)
+  .option('-q, --quality <number>', 'AVIF quality (1-100)', (value) => validateNumberInRange(value, 1, 100, 'Quality'), DEFAULT_CONFIG.quality)
+  .option('-e, --effort <number>', 'Compression effort (1-10)', (value) => validateNumberInRange(value, 1, 10, 'Effort'), DEFAULT_CONFIG.effort)
   .option('-o, --output-dir <path>', 'Output directory (default: same as input)')
   .option('-r, --recursive', 'Search recursively in subdirectories')
   .option('--no-preserve-original', 'Delete original files after conversion')
   .action(async (input, options) => {
     try {
+      validateInputPath(input);
+      validateOutputDir(options.outputDir);
       await optimizeImages(input, {
         maxWidth: options.maxWidth,
         maxHeight: options.maxHeight,
@@ -238,7 +266,7 @@ program
         recursive: options.recursive
       });
     } catch (error) {
-      console.error('❌ Optimization failed:', error.message);
+      console.error(`❌ ${error.message}`);
       process.exit(1);
     }
   });
