@@ -13,6 +13,7 @@
 - 📁 **Batch Processing**: Process single files, directories, or glob patterns
 - ⚡ **High Performance**: Uses Sharp library for lightning-fast processing
 - 📊 **Detailed Reporting**: Shows file size savings and dimension changes
+- ⏱️ **Processing Time Stats**: Tracks how long each conversion takes
 - 🌐 **Web Optimized**: AVIF format with 93%+ browser support and 50-90% size reduction
 
 ## 🚀 Quick Start
