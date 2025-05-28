@@ -21,6 +21,7 @@ const DEFAULT_CONFIG = {
   outputDir: null, // Same directory as input by default
   preserveOriginal: true,
   recursive: false,
+  force: false,
   verbose: false,
   quiet: false,
   json: false,
@@ -106,7 +107,15 @@ async function convertImageToAvif(inputPath, config) {
     const inputName = path.basename(inputPath, inputExt);
     const outputDir = config.outputDir || inputDir;
     const outputPath = path.join(outputDir, `${inputName}.avif`);
-    
+
+    // Skip if output exists and not forcing
+    if (fs.existsSync(outputPath) && !config.force) {
+      if (!config.json) {
+        normal(`⚠️  Skipping ${path.basename(inputPath)}: output already exists`);
+      }
+      return { skipped: true };
+    }
+
     // Ensure output directory exists
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
@@ -170,7 +179,8 @@ async function convertImageToAvif(inputPath, config) {
       originalHeight,
       newWidth,
       newHeight,
-      resized: dimensionChange
+      resized: dimensionChange,
+      skipped: false
     };
     
   } catch (error) {
@@ -210,8 +220,8 @@ async function analyzeImageFile(inputPath, config) {
       : '';
 
     if (!config.json) {
-      console.log(`🔎 ${path.basename(inputPath)} → ${path.basename(outputPath)}`);
-      console.log(`   Size: ${(originalSize / 1024).toFixed(1)}KB → ${(estimatedSize / 1024).toFixed(1)}KB (${sizeSavings}% savings)${dimensionChange}`);
+      normal(`🔎 ${path.basename(inputPath)} → ${path.basename(outputPath)}`);
+      normal(`   Size: ${(originalSize / 1024).toFixed(1)}KB → ${(estimatedSize / 1024).toFixed(1)}KB (${sizeSavings}% savings)${dimensionChange}`);
     }
 
     return {
@@ -318,34 +328,48 @@ async function optimizeImages(input, options) {
   if (!config.json) {
     normal(`Found ${imageFiles.length} image file(s) to process:\n`);
   }
+  
   // Convert files
   const results = [];
+  let skippedCount = 0;
   for (const imageFile of imageFiles) {
     const result = config.dryRun
       ? await analyzeImageFile(imageFile, config)
       : await convertImageToAvif(imageFile, config);
     if (result) {
-      results.push(result);
+      if (result.skipped) {
+        skippedCount++;
+      } else {
+        results.push(result);
+      }
     }
   }
 
   // Summary
-  if (results.length > 0) {
+  if (results.length > 0 || skippedCount > 0) {
     const totalOriginalSize = results.reduce((sum, r) => sum + r.originalSize, 0);
     const totalOutputSize = results.reduce((sum, r) => sum + r.outputSize, 0);
-    const totalSavings = ((totalOriginalSize - totalOutputSize) / totalOriginalSize * 100).toFixed(1);
+    const totalSavings = totalOriginalSize > 0 
+      ? ((totalOriginalSize - totalOutputSize) / totalOriginalSize * 100).toFixed(1)
+      : '0';
     const resizedCount = results.filter(r => r.resized || r.dimensionChange).length;
 
     if (!config.json) {
-      quiet('\n📊 Conversion Summary');
+      quiet(config.dryRun ? '\n📊 Dry Run Summary' : '\n📊 Conversion Summary');
       quiet('=====================');
-      quiet(`✅ Successfully converted: ${results.length} files`);
+      quiet(`✅ Successfully ${config.dryRun ? 'analyzed' : 'converted'}: ${results.length} files`);
+      if (skippedCount > 0) {
+        quiet(`⏭️  Skipped: ${skippedCount} files`);
+      }
       quiet(`📏 Resized images: ${resizedCount} files`);
-      quiet(`💾 Total size savings: ${(totalOriginalSize / 1024).toFixed(1)}KB → ${(totalOutputSize / 1024).toFixed(1)}KB (${totalSavings}%)`);
-      quiet(`🌐 Modern format: All images now use AVIF (93%+ browser support)`);
+      if (results.length > 0) {
+        quiet(`💾 Total size savings: ${(totalOriginalSize / 1024).toFixed(1)}KB → ${(totalOutputSize / 1024).toFixed(1)}KB (${totalSavings}%)`);
+        quiet(`🌐 Modern format: All images now use AVIF (93%+ browser support)`);
+      }
     } else {
       const summary = {
-        converted: results.length,
+        [config.dryRun ? 'analyzed' : 'converted']: results.length,
+        skipped: skippedCount,
         resized: resizedCount,
         totalOriginalSize,
         totalOutputSize,
@@ -368,6 +392,7 @@ program
   .option('-e, --effort <number>', 'Compression effort (1-10)', (value) => parseInt(value), DEFAULT_CONFIG.effort)
   .option('-o, --output-dir <path>', 'Output directory (default: same as input)')
   .option('-r, --recursive', 'Search recursively in subdirectories')
+  .option('-f, --force', 'Overwrite existing .avif files without prompting')
   .option('--json', 'Output conversion results as JSON')
   .option('-d, --dry-run', 'Show what files would be processed without converting')
   .option('-x, --exclude <pattern>', 'Glob pattern to exclude (can be used multiple times)', (val, acc) => {
@@ -387,6 +412,7 @@ program
         outputDir: options.outputDir,
         preserveOriginal: options.preserveOriginal,
         recursive: options.recursive,
+        force: options.force,
         verbose: options.verbose,
         quiet: options.quiet,
         json: options.json || false,
@@ -407,6 +433,7 @@ Examples:
   $ avif-optimizer ./images --recursive
   $ avif-optimizer "*.{jpg,png}" --max-width 800
   $ avif-optimizer ./photos --output-dir ./optimized
+  $ avif-optimizer ./images --force
   $ avif-optimizer image.jpg --quiet
   $ avif-optimizer ./images --dry-run
   $ avif-optimizer ./images --exclude "*.thumb.*"
