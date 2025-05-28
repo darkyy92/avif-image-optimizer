@@ -43,6 +43,21 @@ avif-optimizer photo.png --quality 80
 avif-optimizer "*.{jpg,png}" --max-width 800
 ```
 
+### Importing in Web Projects
+
+After installing the package locally you can import the ES module directly in
+any Node-based build system (Webpack, Vite, Rollup, etc.) or server script:
+
+```javascript
+import { optimizeToAvif } from 'avif-image-optimizer';
+```
+
+If your project still uses CommonJS modules, use a dynamic import:
+
+```javascript
+const { optimizeToAvif } = await import('avif-image-optimizer');
+```
+
 ## 📖 Usage
 
 ### Command Line Interface
