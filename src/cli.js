@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
 import { glob } from 'glob';
+import { minimatch } from 'minimatch';
 import { program } from 'commander';
 
 /**
@@ -20,13 +21,47 @@ const DEFAULT_CONFIG = {
   outputDir: null, // Same directory as input by default
   preserveOriginal: true,
   recursive: false,
-  force: false
+  force: false,
+  verbose: false,
+  quiet: false,
+  json: false,
+  dryRun: false,
+  exclude: []
 };
 
 /**
  * Supported input formats
  */
 const SUPPORTED_FORMATS = ['.jpg', '.jpeg', '.png', '.webp', '.tiff', '.tif'];
+
+// Output mode handling
+let outputMode = 'normal';
+
+function setOutputMode({ verbose, quiet }) {
+  if (quiet) {
+    outputMode = 'quiet';
+  } else if (verbose) {
+    outputMode = 'verbose';
+  } else {
+    outputMode = 'normal';
+  }
+}
+
+function verbose(...args) {
+  if (outputMode === 'verbose') {
+    console.log(...args);
+  }
+}
+
+function normal(...args) {
+  if (outputMode !== 'quiet') {
+    console.log(...args);
+  }
+}
+
+function quiet(...args) {
+  console.log(...args);
+}
 
 /**
  * Get optimized dimensions while maintaining aspect ratio
@@ -75,7 +110,9 @@ async function convertImageToAvif(inputPath, config) {
 
     // Skip if output exists and not forcing
     if (fs.existsSync(outputPath) && !config.force) {
-      console.log(`⚠️  Skipping ${path.basename(inputPath)}: output already exists`);
+      if (!config.json) {
+        normal(`⚠️  Skipping ${path.basename(inputPath)}: output already exists`);
+      }
       return { skipped: true };
     }
 
@@ -89,7 +126,10 @@ async function convertImageToAvif(inputPath, config) {
     const { width: originalWidth, height: originalHeight } = metadata;
     const originalStats = fs.statSync(inputPath);
     const originalSize = originalStats.size;
-    
+
+    verbose(`Processing: ${inputPath}`);
+    verbose(`Original dimensions: ${originalWidth}x${originalHeight}`);
+
     // Calculate optimized dimensions
     const { width: newWidth, height: newHeight } = getOptimizedDimensions(
       originalWidth,
@@ -97,7 +137,9 @@ async function convertImageToAvif(inputPath, config) {
       config.maxWidth,
       config.maxHeight
     );
-    
+
+    verbose(`Optimized dimensions: ${newWidth}x${newHeight}`);
+
     // Convert to AVIF with optimization
     await sharp(inputPath)
       .resize(newWidth, newHeight, {
@@ -117,12 +159,15 @@ async function convertImageToAvif(inputPath, config) {
     
     // Calculate savings
     const sizeSavings = ((originalSize - outputSize) / originalSize * 100).toFixed(1);
-    const dimensionChange = (originalWidth !== newWidth || originalHeight !== newHeight) 
-      ? ` (${originalWidth}x${originalHeight} → ${newWidth}x${newHeight})`
-      : '';
-    
-    console.log(`✅ ${path.basename(inputPath)} → ${path.basename(outputPath)}`);
-    console.log(`   Size: ${(originalSize / 1024).toFixed(1)}KB → ${(outputSize / 1024).toFixed(1)}KB (${sizeSavings}% savings)${dimensionChange}`);
+    const dimensionChange = originalWidth !== newWidth || originalHeight !== newHeight;
+
+    if (!config.json) {
+      const changeInfo = dimensionChange
+        ? ` (${originalWidth}x${originalHeight} → ${newWidth}x${newHeight})`
+        : '';
+      normal(`✅ ${path.basename(inputPath)} → ${path.basename(outputPath)}`);
+      normal(`   Size: ${(originalSize / 1024).toFixed(1)}KB → ${(outputSize / 1024).toFixed(1)}KB (${sizeSavings}% savings)${changeInfo}`);
+    }
 
     return {
       inputPath,
@@ -130,12 +175,65 @@ async function convertImageToAvif(inputPath, config) {
       originalSize,
       outputSize,
       sizeSavings: parseFloat(sizeSavings),
-      dimensionChange: dimensionChange !== '',
+      originalWidth,
+      originalHeight,
+      newWidth,
+      newHeight,
+      resized: dimensionChange,
       skipped: false
     };
     
   } catch (error) {
     console.error(`❌ Error converting ${inputPath}:`, error.message);
+    return null;
+  }
+}
+
+/**
+ * Analyze a single image file without converting (dry run)
+ */
+async function analyzeImageFile(inputPath, config) {
+  try {
+    const inputDir = path.dirname(inputPath);
+    const inputExt = path.extname(inputPath).toLowerCase();
+    const inputName = path.basename(inputPath, inputExt);
+    const outputDir = config.outputDir || inputDir;
+    const outputPath = path.join(outputDir, `${inputName}.avif`);
+
+    const metadata = await sharp(inputPath).metadata();
+    const { width: originalWidth, height: originalHeight } = metadata;
+    const originalStats = fs.statSync(inputPath);
+    const originalSize = originalStats.size;
+
+    const { width: newWidth, height: newHeight } = getOptimizedDimensions(
+      originalWidth,
+      originalHeight,
+      config.maxWidth,
+      config.maxHeight
+    );
+
+    const pixelRatio = (newWidth * newHeight) / (originalWidth * originalHeight);
+    const estimatedSize = Math.round(originalSize * pixelRatio * 0.6);
+    const sizeSavings = ((originalSize - estimatedSize) / originalSize * 100).toFixed(1);
+    const dimensionChange = (originalWidth !== newWidth || originalHeight !== newHeight)
+      ? ` (${originalWidth}x${originalHeight} → ${newWidth}x${newHeight})`
+      : '';
+
+    if (!config.json) {
+      normal(`🔎 ${path.basename(inputPath)} → ${path.basename(outputPath)}`);
+      normal(`   Size: ${(originalSize / 1024).toFixed(1)}KB → ${(estimatedSize / 1024).toFixed(1)}KB (${sizeSavings}% savings)${dimensionChange}`);
+    }
+
+    return {
+      inputPath,
+      outputPath,
+      originalSize,
+      outputSize: estimatedSize,
+      sizeSavings: parseFloat(sizeSavings),
+      dimensionChange: dimensionChange !== ''
+    };
+  } catch (error) {
+    console.error(`❌ Error analyzing ${inputPath}:`, error.message);
     return null;
   }
 }
@@ -171,35 +269,73 @@ async function findImageFiles(pattern, recursive) {
 }
 
 /**
+ * Filter files using exclusion glob patterns
+ */
+function applyExclusions(files, patterns) {
+  if (!patterns || patterns.length === 0) {
+    return { files, excludedCount: 0 };
+  }
+
+  let excludedCount = 0;
+  const filtered = files.filter(file => {
+    const isExcluded = patterns.some(pattern => minimatch(file, pattern, { matchBase: true }));
+    if (isExcluded) excludedCount++;
+    return !isExcluded;
+  });
+
+  return { files: filtered, excludedCount };
+}
+
+/**
  * Main conversion function
  */
 async function optimizeImages(input, options) {
   const config = { ...DEFAULT_CONFIG, ...options };
+
+  setOutputMode(config);
   
-  console.log('🖼️  AVIF Image Optimizer');
-  console.log('========================');
-  console.log(`Supported formats: ${SUPPORTED_FORMATS.join(', ')}`);
-  console.log(`Max dimensions: ${config.maxWidth}x${config.maxHeight}px`);
-  console.log(`Quality: ${config.quality}`);
-  console.log(`Effort: ${config.effort}`);
-  console.log('');
-  
-  // Find image files
-  const imageFiles = await findImageFiles(input, config.recursive);
-  
-  if (imageFiles.length === 0) {
-    console.log('⚠️  No supported image files found matching the pattern');
-    console.log(`   Supported formats: ${SUPPORTED_FORMATS.join(', ')}`);
-    return;
+  if (!config.json) {
+    normal('🖼️  AVIF Image Optimizer');
+    normal('========================');
+    normal(`Supported formats: ${SUPPORTED_FORMATS.join(', ')}`);
+    normal(`Max dimensions: ${config.maxWidth}x${config.maxHeight}px`);
+    normal(`Quality: ${config.quality}`);
+    normal(`Effort: ${config.effort}`);
+    if (config.dryRun) {
+      normal('Mode: Dry run (no files will be written)');
+    }
+    normal('');
   }
   
-  console.log(`Found ${imageFiles.length} image file(s) to convert:\n`);
+  // Find image files
+  let imageFiles = await findImageFiles(input, config.recursive);
+  const { files: filteredFiles, excludedCount } = applyExclusions(imageFiles, config.exclude);
+  imageFiles = filteredFiles;
+  if (excludedCount > 0 && !config.json) {
+    normal(`Excluded ${excludedCount} file(s) based on patterns`);
+  }
+
+  if (imageFiles.length === 0) {
+    if (!config.json) {
+      normal('⚠️  No supported image files found matching the pattern');
+      normal(`   Supported formats: ${SUPPORTED_FORMATS.join(', ')}`);
+    } else {
+      console.log(JSON.stringify({ error: 'No supported image files found' }));
+    }
+    return;
+  }
+
+  if (!config.json) {
+    normal(`Found ${imageFiles.length} image file(s) to process:\n`);
+  }
   
   // Convert files
   const results = [];
   let skippedCount = 0;
   for (const imageFile of imageFiles) {
-    const result = await convertImageToAvif(imageFile, config);
+    const result = config.dryRun
+      ? await analyzeImageFile(imageFile, config)
+      : await convertImageToAvif(imageFile, config);
     if (result) {
       if (result.skipped) {
         skippedCount++;
@@ -208,25 +344,38 @@ async function optimizeImages(input, options) {
       }
     }
   }
-  
+
   // Summary
   if (results.length > 0 || skippedCount > 0) {
-    console.log('\n📊 Conversion Summary');
-    console.log('=====================');
-
     const totalOriginalSize = results.reduce((sum, r) => sum + r.originalSize, 0);
     const totalOutputSize = results.reduce((sum, r) => sum + r.outputSize, 0);
-    const totalSavings = ((totalOriginalSize - totalOutputSize) / totalOriginalSize * 100).toFixed(1);
-    const resizedCount = results.filter(r => r.dimensionChange).length;
-    
-    console.log(`✅ Successfully converted: ${results.length} files`);
-    if (skippedCount > 0) {
-      console.log(`⏭️  Skipped: ${skippedCount} files`);
-    }
-    console.log(`📏 Resized images: ${resizedCount} files`);
-    if (results.length > 0) {
-      console.log(`💾 Total size savings: ${(totalOriginalSize / 1024).toFixed(1)}KB → ${(totalOutputSize / 1024).toFixed(1)}KB (${totalSavings}%)`);
-      console.log(`🌐 Modern format: All images now use AVIF (93%+ browser support)`);
+    const totalSavings = totalOriginalSize > 0 
+      ? ((totalOriginalSize - totalOutputSize) / totalOriginalSize * 100).toFixed(1)
+      : '0';
+    const resizedCount = results.filter(r => r.resized || r.dimensionChange).length;
+
+    if (!config.json) {
+      quiet(config.dryRun ? '\n📊 Dry Run Summary' : '\n📊 Conversion Summary');
+      quiet('=====================');
+      quiet(`✅ Successfully ${config.dryRun ? 'analyzed' : 'converted'}: ${results.length} files`);
+      if (skippedCount > 0) {
+        quiet(`⏭️  Skipped: ${skippedCount} files`);
+      }
+      quiet(`📏 Resized images: ${resizedCount} files`);
+      if (results.length > 0) {
+        quiet(`💾 Total size savings: ${(totalOriginalSize / 1024).toFixed(1)}KB → ${(totalOutputSize / 1024).toFixed(1)}KB (${totalSavings}%)`);
+        quiet(`🌐 Modern format: All images now use AVIF (93%+ browser support)`);
+      }
+    } else {
+      const summary = {
+        [config.dryRun ? 'analyzed' : 'converted']: results.length,
+        skipped: skippedCount,
+        resized: resizedCount,
+        totalOriginalSize,
+        totalOutputSize,
+        totalSavings: parseFloat(totalSavings)
+      };
+      console.log(JSON.stringify({ summary, results }, null, 2));
     }
   }
 }
@@ -244,7 +393,15 @@ program
   .option('-o, --output-dir <path>', 'Output directory (default: same as input)')
   .option('-r, --recursive', 'Search recursively in subdirectories')
   .option('-f, --force', 'Overwrite existing .avif files without prompting')
+  .option('--json', 'Output conversion results as JSON')
+  .option('-d, --dry-run', 'Show what files would be processed without converting')
+  .option('-x, --exclude <pattern>', 'Glob pattern to exclude (can be used multiple times)', (val, acc) => {
+    acc.push(val);
+    return acc;
+  }, [])
   .option('--no-preserve-original', 'Delete original files after conversion')
+  .option('--verbose', 'Enable verbose output')
+  .option('--quiet', 'Suppress all output except errors and final summary')
   .action(async (input, options) => {
     try {
       await optimizeImages(input, {
@@ -255,7 +412,12 @@ program
         outputDir: options.outputDir,
         preserveOriginal: options.preserveOriginal,
         recursive: options.recursive,
-        force: options.force
+        force: options.force,
+        verbose: options.verbose,
+        quiet: options.quiet,
+        json: options.json || false,
+        dryRun: options.dryRun,
+        exclude: options.exclude
       });
     } catch (error) {
       console.error('❌ Optimization failed:', error.message);
@@ -271,11 +433,16 @@ Examples:
   $ avif-optimizer ./images --recursive
   $ avif-optimizer "*.{jpg,png}" --max-width 800
   $ avif-optimizer ./photos --output-dir ./optimized
-  
+  $ avif-optimizer ./images --force
+  $ avif-optimizer image.jpg --quiet
+  $ avif-optimizer ./images --dry-run
+  $ avif-optimizer ./images --exclude "*.thumb.*"
+  $ avif-optimizer ./images --json > report.json
+
 Supported formats: ${SUPPORTED_FORMATS.join(', ')}
 `);
 
 // Run the program
 program.parse();
 
-export { optimizeImages, convertImageToAvif };
+export { optimizeImages, convertImageToAvif, analyzeImageFile };
