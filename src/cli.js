@@ -173,8 +173,10 @@ async function analyzeImageFile(inputPath, config) {
       ? ` (${originalWidth}x${originalHeight} → ${newWidth}x${newHeight})`
       : '';
 
-    console.log(`🔎 ${path.basename(inputPath)} → ${path.basename(outputPath)}`);
-    console.log(`   Size: ${(originalSize / 1024).toFixed(1)}KB → ${(estimatedSize / 1024).toFixed(1)}KB (${sizeSavings}% savings)${dimensionChange}`);
+    if (!config.json) {
+      console.log(`🔎 ${path.basename(inputPath)} → ${path.basename(outputPath)}`);
+      console.log(`   Size: ${(originalSize / 1024).toFixed(1)}KB → ${(estimatedSize / 1024).toFixed(1)}KB (${sizeSavings}% savings)${dimensionChange}`);
+    }
 
     return {
       inputPath,
@@ -291,11 +293,10 @@ async function optimizeImages(input, options) {
   
   // Summary
   if (results.length > 0) {
-<<<<<<< HEAD
     const totalOriginalSize = results.reduce((sum, r) => sum + r.originalSize, 0);
     const totalOutputSize = results.reduce((sum, r) => sum + r.outputSize, 0);
     const totalSavings = ((totalOriginalSize - totalOutputSize) / totalOriginalSize * 100).toFixed(1);
-    const resizedCount = results.filter(r => r.resized).length;
+    const resizedCount = results.filter(r => r.resized || r.dimensionChange).length;
 
     if (!config.json) {
       console.log('\n📊 Conversion Summary');
@@ -329,9 +330,7 @@ program
   .option('-e, --effort <number>', 'Compression effort (1-10)', (value) => parseInt(value), DEFAULT_CONFIG.effort)
   .option('-o, --output-dir <path>', 'Output directory (default: same as input)')
   .option('-r, --recursive', 'Search recursively in subdirectories')
-<<<<<<< HEAD
   .option('--json', 'Output conversion results as JSON')
-=======
   .option('-d, --dry-run', 'Show what files would be processed without converting')
   .option('-x, --exclude <pattern>', 'Glob pattern to exclude (can be used multiple times)', (val, acc) => {
     acc.push(val);
