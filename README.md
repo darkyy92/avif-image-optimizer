@@ -77,6 +77,7 @@ avif-optimizer <input> [options]
 | `--effort` | `-e` | Compression effort (1-10) | 6 |
 | `--output-dir` | `-o` | Output directory | Same as input |
 | `--recursive` | `-r` | Search subdirectories | false |
+| `--json` | | Output conversion results as JSON | false |
 | `--exclude` | `-x` | Glob pattern(s) to exclude | None |
 | `--no-preserve-original` | | Delete originals after conversion | false |
 | `--dry-run` | `-d` | Show files that would be processed without converting | false |
@@ -98,6 +99,9 @@ avif-optimizer batch/*.png --effort 3
 
 # Convert without preserving originals
 avif-optimizer temp-images/ --no-preserve-original
+
+# Generate JSON report
+avif-optimizer ./images --json
 
 # Preview changes without writing output
 avif-optimizer ./images --dry-run
