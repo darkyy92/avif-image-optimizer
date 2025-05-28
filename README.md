@@ -79,6 +79,7 @@ avif-optimizer <input> [options]
 | `--recursive` | `-r` | Search subdirectories | false |
 | `--exclude` | `-x` | Glob pattern(s) to exclude | None |
 | `--no-preserve-original` | | Delete originals after conversion | false |
+| `--dry-run` | `-d` | Show files that would be processed without converting | false |
 
 #### Examples
 
@@ -97,6 +98,9 @@ avif-optimizer batch/*.png --effort 3
 
 # Convert without preserving originals
 avif-optimizer temp-images/ --no-preserve-original
+
+# Preview changes without writing output
+avif-optimizer ./images --dry-run
 
 # Exclude thumbnail files
 avif-optimizer ./images --exclude "*.thumb.*"
