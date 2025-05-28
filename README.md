@@ -13,6 +13,7 @@
 - 📁 **Batch Processing**: Process single files, directories, or glob patterns
 - ⚡ **High Performance**: Uses Sharp library for lightning-fast processing
 - 📊 **Detailed Reporting**: Shows file size savings and dimension changes
+- 🚫 **Exclude Patterns**: Skip files matching glob patterns during batch runs
 - 🌐 **Web Optimized**: AVIF format with 93%+ browser support and 50-90% size reduction
 
 ## 🚀 Quick Start
@@ -43,6 +44,21 @@ avif-optimizer photo.png --quality 80
 avif-optimizer "*.{jpg,png}" --max-width 800
 ```
 
+### Importing in Web Projects
+
+After installing the package locally you can import the ES module directly in
+any Node-based build system (Webpack, Vite, Rollup, etc.) or server script:
+
+```javascript
+import { optimizeToAvif } from 'avif-image-optimizer';
+```
+
+If your project still uses CommonJS modules, use a dynamic import:
+
+```javascript
+const { optimizeToAvif } = await import('avif-image-optimizer');
+```
+
 ## 📖 Usage
 
 ### Command Line Interface
@@ -61,9 +77,12 @@ avif-optimizer <input> [options]
 | `--effort` | `-e` | Compression effort (1-10) | 6 |
 | `--output-dir` | `-o` | Output directory | Same as input |
 | `--recursive` | `-r` | Search subdirectories | false |
+| `--json` | | Output conversion results as JSON | false |
+| `--exclude` | `-x` | Glob pattern(s) to exclude | None |
 | `--no-preserve-original` | | Delete originals after conversion | false |
 | `--verbose` | | Enable verbose output | false |
 | `--quiet` | | Suppress all output except errors and summary | false |
+| `--dry-run` | `-d` | Show files that would be processed without converting | false |
 
 #### Examples
 
@@ -85,6 +104,15 @@ avif-optimizer temp-images/ --no-preserve-original
 
 # Suppress output except final summary
 avif-optimizer photo.jpg --quiet
+
+# Generate JSON report
+avif-optimizer ./images --json
+
+# Preview changes without writing output
+avif-optimizer ./images --dry-run
+
+# Exclude thumbnail files
+avif-optimizer ./images --exclude "*.thumb.*"
 ```
 
 ### Programmatic API

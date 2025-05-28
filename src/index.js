@@ -5,10 +5,10 @@
  * to AVIF with intelligent resizing and compression.
  */
 
-import { optimizeImages, convertImageToAvif } from './cli.js';
+import { optimizeImages, convertImageToAvif, analyzeImageFile } from './cli.js';
 
 // Export the main functions for programmatic use
-export { optimizeImages, convertImageToAvif };
+export { optimizeImages, convertImageToAvif, analyzeImageFile };
 
 // Default configuration
 export const DEFAULT_CONFIG = {
@@ -20,7 +20,10 @@ export const DEFAULT_CONFIG = {
   preserveOriginal: true,
   recursive: false,
   verbose: false,
-  quiet: false
+  quiet: false,
+  json: false,
+  dryRun: false,
+  exclude: []
 };
 
 // Supported formats
@@ -43,9 +46,11 @@ export async function optimizeToAvif(input, options = {}) {
 export async function batchConvert(files, options = {}) {
   const config = { ...DEFAULT_CONFIG, ...options };
   const results = [];
-  
+
   for (const file of files) {
-    const result = await convertImageToAvif(file, config);
+    const result = config.dryRun
+      ? await analyzeImageFile(file, config)
+      : await convertImageToAvif(file, config);
     if (result) {
       results.push(result);
     }
