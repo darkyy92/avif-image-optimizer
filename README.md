@@ -80,6 +80,8 @@ avif-optimizer <input> [options]
 | `--json` | | Output conversion results as JSON | false |
 | `--exclude` | `-x` | Glob pattern(s) to exclude | None |
 | `--no-preserve-original` | | Delete originals after conversion | false |
+| `--verbose` | | Enable verbose output | false |
+| `--quiet` | | Suppress all output except errors and summary | false |
 | `--dry-run` | `-d` | Show files that would be processed without converting | false |
 
 #### Examples
@@ -99,6 +101,9 @@ avif-optimizer batch/*.png --effort 3
 
 # Convert without preserving originals
 avif-optimizer temp-images/ --no-preserve-original
+
+# Suppress output except final summary
+avif-optimizer photo.jpg --quiet
 
 # Generate JSON report
 avif-optimizer ./images --json

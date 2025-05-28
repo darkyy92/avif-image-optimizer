@@ -19,6 +19,8 @@ export const DEFAULT_CONFIG = {
   outputDir: null,
   preserveOriginal: true,
   recursive: false,
+  verbose: false,
+  quiet: false,
   json: false,
   dryRun: false,
   exclude: []
