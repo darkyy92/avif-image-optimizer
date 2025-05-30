@@ -91,3 +91,7 @@ sample-images/
 *.test.jpg
 *.test.png
 *.test.avif
+
+# Generated reports
+avif-report-*.md
+avif-report-*.json

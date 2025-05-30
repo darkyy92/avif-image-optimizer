@@ -130,6 +130,7 @@ avif-optimizer <input> [options]
 | `--quiet` | | Suppress all output except errors and summary | false |
 | `--dry-run` | `-d` | Show files that would be processed without converting | false |
 | `--concurrency` | `-c` | Number of parallel conversions (1-32) | CPU cores |
+| `--generate-report` | | Generate markdown and JSON conversion reports | false |
 
 #### Examples
 
@@ -181,6 +182,9 @@ avif-optimizer ./images --recursive --no-preserve-original
 
 # Safe way: test with dry-run first
 avif-optimizer ./images --recursive --no-preserve-original --dry-run
+
+# Generate detailed conversion reports
+avif-optimizer ./project --recursive --generate-report
 ```
 
 ### Programmatic API
@@ -287,6 +291,42 @@ Since the tool preserves your original files by default, you can use the modern 
 ```
 
 This ensures maximum compatibility while serving optimized AVIF to modern browsers. If you want AVIF-only files (no fallbacks), use the `--no-preserve-original` flag.
+
+## 📄 Conversion Reports
+
+Generate detailed reports to track conversions and update your codebase:
+
+```bash
+avif-optimizer . --recursive --generate-report
+```
+
+This creates two report files:
+- `avif-report-[timestamp].md` - Human-readable markdown report
+- `avif-report-[timestamp].json` - Machine-readable JSON for automation
+
+### Report Contents
+
+The markdown report includes:
+- **Summary statistics** - Total files, size savings, processing time
+- **Conversion details** - Table of all converted files with sizes
+- **Code migration guide** - Framework-specific code examples
+- **Search patterns** - Regex patterns to find image references
+- **File checklist** - Which files in your project need updating
+
+### Using Reports with AI Agents
+
+Perfect for updating your codebase with AI assistance:
+
+```bash
+# 1. Generate report
+avif-optimizer . --recursive --generate-report
+
+# 2. Share report with Claude/ChatGPT:
+"Update all image references in my codebase using this AVIF conversion report. 
+Use picture elements for HTML and appropriate patterns for React/Vue/CSS."
+```
+
+The report provides all file mappings and code patterns needed for a complete migration.
 
 ## 🛠️ Advanced Usage
 

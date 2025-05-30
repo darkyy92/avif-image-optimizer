@@ -111,6 +111,31 @@ src/
 3. Test concurrency limits
 4. Benchmark before/after
 
+## Report Generation
+
+The tool can generate detailed conversion reports for AI-assisted code migration:
+
+```bash
+# Generate reports after conversion
+avif-optimizer . --recursive --generate-report
+
+# Creates:
+# - avif-report-[timestamp].md - Human-readable report
+# - avif-report-[timestamp].json - Machine-readable data
+```
+
+**Report Features**:
+- Complete file mappings (original → AVIF)
+- Framework-specific code examples
+- Search patterns for finding references
+- Migration command suggestions
+
+**AI Workflow**:
+1. Run optimizer with `--generate-report`
+2. Share the markdown report with AI
+3. Request: "Update all image references using this report"
+4. Report includes all necessary patterns and mappings
+
 ## AI Agent Tips
 
 1. **Use the test suite**: Run `npm test` frequently
@@ -119,6 +144,7 @@ src/
 4. **Mock carefully**: See existing test patterns
 5. **Handle errors**: Ensure batch processing continues
 6. **Document changes**: Update JSDoc annotations
+7. **Use reports**: Generate reports for tracking conversions
 
 ## Resources
 

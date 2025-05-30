@@ -39,6 +39,7 @@ import {
   createTimer
 } from './image-processor.js';
 import { processInParallel, getOptimalConcurrency } from './parallel-processor.js';
+import { generateReports } from './report-generator.js';
 
 /**
  * AVIF Image Optimizer
@@ -238,6 +239,18 @@ async function optimizeImages(input, options) {
     
     displaySummary(summary, config);
     
+    // Generate reports if requested
+    if (config.generateReport && !config.dryRun && results.length > 0) {
+      const reportDir = config.outputDir || process.cwd();
+      const reportPaths = generateReports(summary, reportDir);
+      
+      if (!config.quiet && !config.json) {
+        normal(`\n📊 Reports generated:`);
+        normal(`  • Markdown: ${reportPaths.markdown}`);
+        normal(`  • JSON: ${reportPaths.json}`);
+      }
+    }
+    
     return summary;
   }
 }
@@ -264,6 +277,7 @@ program
   .option('--no-preserve-original', 'Delete original files after conversion')
   .option('--preserve-exif', 'Preserve EXIF metadata in converted images (increases file size)')
   .option('-c, --concurrency <number>', 'Number of files to process in parallel (default: CPU cores)', (value) => validateNumericRange(value, 1, 32, 'Concurrency', ['--concurrency 4', '--concurrency 8']))
+  .option('--generate-report', 'Generate markdown and JSON reports of conversion results')
   .option('--verbose', 'Enable verbose output')
   .option('--quiet', 'Suppress all output except errors and final summary')
   .action(async (input, options) => {
@@ -289,10 +303,11 @@ program
         json: options.json || false,
         dryRun: options.dryRun,
         exclude: options.exclude,
-        concurrency: options.concurrency
+        concurrency: options.concurrency,
+        generateReport: options.generateReport || DEFAULT_CONFIG.generateReport
       });
-    } catch (error) {
-      error('❌ Optimization failed:', error.message);
+    } catch (err) {
+      error('❌ Optimization failed:', err.message);
       process.exit(1);
     }
   });
@@ -312,6 +327,7 @@ Examples:
   $ avif-optimizer ./images --preserve-exif
   $ avif-optimizer ./images --json > report.json
   $ avif-optimizer ./images --concurrency 8
+  $ avif-optimizer ./images --generate-report
 
 Supported formats: ${SUPPORTED_FORMATS.join(', ')}
 `);

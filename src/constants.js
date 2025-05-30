@@ -24,6 +24,7 @@
  * @property {boolean} json - Output results as JSON (default: false)
  * @property {boolean} dryRun - Preview without processing (default: false)
  * @property {string[]} exclude - Glob patterns to exclude (default: [])
+ * @property {boolean} generateReport - Generate markdown and JSON reports (default: false)
  * @constant {DefaultConfig}
  */
 export const DEFAULT_CONFIG = {
@@ -40,7 +41,8 @@ export const DEFAULT_CONFIG = {
   quiet: false,
   json: false,
   dryRun: false,
-  exclude: []
+  exclude: [],
+  generateReport: false
 };
 
 /**

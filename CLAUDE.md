@@ -147,3 +147,36 @@ The `test-images/` directory contains sample files for testing:
 2. Add validation in `validation.js` if needed
 3. Update `DEFAULT_CONFIG` in `constants.js`
 4. Add tests for the new option
+
+## Report Generation Feature
+
+The tool can generate detailed conversion reports for tracking and migration:
+
+### Usage
+```bash
+# Generate reports after conversion
+avif-optimizer . --recursive --generate-report
+
+# Creates two files:
+# - avif-report-YYYYMMDD-HHMMSS.md (human-readable)
+# - avif-report-YYYYMMDD-HHMMSS.json (machine-readable)
+```
+
+### Report Contents
+- Summary statistics and performance metrics
+- Detailed conversion results for each file
+- Code migration examples for various frameworks
+- Search patterns for finding image references
+- File checklist showing which files need updating
+
+### AI-Assisted Migration Workflow
+1. Run optimizer with `--generate-report`
+2. Open the markdown report in Claude Code
+3. Ask Claude to update all image references using the report
+4. The report includes all necessary mappings and code patterns
+
+### Implementation Details
+- Module: `src/report-generator.js`
+- Functions: `generateMarkdownReport()`, `generateJsonReport()`, `saveReports()`
+- Integrated with CLI via `--generate-report` flag
+- Tests in `test/report-generator.test.js`
