@@ -323,12 +323,13 @@ NODE_OPTIONS="--max-old-space-size=4096" avif-optimizer huge-image.tif
 
 ### HEIC/HEIF Processing Performance
 
-HEIC and HEIF files require preprocessing before conversion to AVIF:
+HEIC and HEIF files require preprocessing before conversion to AVIF using the `heic-convert` library:
 
-- **Processing time**: HEIC/HEIF files take longer to process due to pure JavaScript decoding
-- **Memory usage**: May require more memory for large HEIC files (especially from newer iPhones)
+- **Processing time**: HEIC/HEIF files take longer to process due to pure JavaScript decoding (not native like Sharp)
+- **Memory usage**: May require more memory for large HEIC files (especially from newer iPhones with 48MP+ photos)
 - **Quality**: No quality loss during preprocessing - files are converted to JPEG intermediary format before AVIF conversion
 - **Compatibility**: Works with all HEIC/HEIF files including those from iPhones, modern cameras, and other devices
+- **Library**: Uses [heic-convert](https://github.com/catdad-experiments/heic-convert) for HEIC/HEIF decoding
 
 ### Permission Errors
 
@@ -418,6 +419,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - Built with [Sharp](https://sharp.pixelplumbing.com/) - High performance image processing
+- HEIC/HEIF support via [heic-convert](https://github.com/catdad-experiments/heic-convert) - Pure JavaScript HEIC decoder
 - AVIF format by [AOMedia](https://aomedia.org/)
 - Inspired by the need for modern, efficient web images
 

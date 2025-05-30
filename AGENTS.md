@@ -2,83 +2,127 @@
 
 This file provides guidance to AI coding agents when working with code in this repository.
 
-## Development Commands
+## Quick Start
 
 ```bash
-# Install dependencies
+# Install and test
 npm install
+npm test                    # Run test suite (60+ tests)
+npm run test:coverage      # Check coverage
+npm run typecheck          # Validate JSDoc types
 
-# Test CLI locally
+# Test CLI
 node src/cli.js --help
-node src/cli.js test-images/file_example_JPG_500kB.jpg --quality 80
-
-# Test with different formats
-node src/cli.js test-images/ --recursive
-node src/cli.js test-images/file_example_PNG_500kB.png --max-width 800
+node src/cli.js test-images/ --recursive --concurrency 8
+node src/cli.js test-images/file_example_HEIC_2MB.heic --quality 80  # HEIC support
 
 # Test programmatic API
-node -e "import('./src/index.js').then(m => m.optimizeToAvif('test-images/'))"
+node -e "import('./src/index.js').then(m => m.optimizeToAvif('test-images/', { concurrency: 4 }))"
 ```
 
 ## Architecture Overview
 
-This is a dual-interface image optimization tool with both CLI and programmatic APIs built around a single processing core.
+Modular image optimizer with parallel processing, supporting JPEG, PNG, WebP, TIFF, HEIC/HEIF → AVIF conversion.
 
-### Core Structure
-- **`src/cli.js`**: Main executable with CLI interface and core processing functions
-- **`src/index.js`**: Programmatic API wrapper that imports and re-exports CLI functions
+### Module Structure
+```
+src/
+├── cli.js              # CLI entry point
+├── index.js            # Programmatic API
+├── constants.js        # Shared configuration
+├── validation.js       # Input validation
+├── image-processor.js  # Core processing (async)
+├── parallel-processor.js # Concurrent batch processing
+├── error-handler.js    # Error handling & recovery
+└── output-formatter.js # Display formatting
+```
 
-### Key Processing Pipeline
-1. **File Discovery**: `findImageFiles()` uses glob patterns to locate supported formats
-2. **Image Processing**: `convertImageToAvif()` handles the Sharp-based conversion pipeline  
-3. **Dimension Optimization**: `getOptimizedDimensions()` maintains aspect ratios while respecting size limits
-4. **Batch Orchestration**: `optimizeImages()` coordinates the full workflow with progress reporting
+### Processing Pipeline
+1. **Discovery**: Find images using glob patterns with exclusions
+2. **Validation**: Check inputs and create output directories
+3. **Parallel Processing**: Distribute work across CPU cores
+4. **HEIC Preprocessing**: Convert HEIC/HEIF → JPEG → AVIF
+5. **Optimization**: Resize and convert to AVIF with Sharp
+6. **Error Recovery**: Continue batch on individual failures
 
-### Configuration System
-Uses a layered approach: `DEFAULT_CONFIG` → CLI options → programmatic overrides. Key settings include quality (1-100), effort (1-10), max dimensions, and output directory control.
+### Key Technologies
+- **Sharp**: Native image processing (fast AVIF encoding)
+- **heic-convert**: JavaScript HEIC/HEIF decoder for iPhone photos
+- **Commander**: CLI framework
+- **Glob**: File pattern matching
+- **Jest**: Testing framework
 
-### Dependencies
-- **Sharp**: Core image processing (metadata, resizing, AVIF conversion with Lanczos3 kernel)
-- **Commander**: CLI argument parsing and help generation  
-- **Glob**: File pattern matching with recursive directory support
+## Technical Details
 
-## Important Implementation Details
+### Performance Characteristics
+- **Parallel Processing**: Uses CPU cores for 3-4x faster batch processing
+- **Async I/O**: All file operations are non-blocking
+- **Memory Efficient**: Streams large files, buffers for HEIC conversion
+- **Smart Resizing**: Never upscales, maintains aspect ratios
 
-### Image Processing Specifics
-- Never upscales images (uses `withoutEnlargement: true`)
-- Applies AVIF-specific optimizations (4:2:0 chroma subsampling)
-- Preserves aspect ratios during resizing calculations
-- Uses Lanczos3 kernel for high-quality scaling
+### Supported Formats
+- **Input**: JPEG, PNG, WebP, TIFF, HEIC/HEIF (iPhone photos)
+- **Output**: AVIF with configurable quality (1-100)
+- **HEIC Note**: Uses heic-convert for preprocessing (slower than native formats)
 
-### File Handling Patterns
-- Supports formats: JPG, JPEG, PNG, WebP, TIFF, TIF
-- Creates output directories recursively as needed
-- Preserves original files by default (configurable)
-- Filters out system directories (.git, node_modules) during discovery
+### Error Handling Strategy
+- Centralized error types with specific handling
+- Batch processing continues on individual failures  
+- Detailed error messages with actionable suggestions
+- Special handling for HEIC preprocessing errors
 
-### Error Handling
-- Continues batch processing when individual files fail
-- Provides detailed error messages with file paths
-- Graceful handling of missing files or unsupported formats
+### Configuration Layers
+1. Default config in `constants.js`
+2. CLI flags override defaults
+3. Programmatic options override CLI
+4. All validation in `validation.js`
 
-## Testing Approach
-- Test CLI with various image formats and options
-- Verify dimension calculations don't exceed maximums
-- Check file size reduction statistics accuracy
-- Test recursive directory processing with glob patterns
+## Development Guidelines
 
-## Test Files Available
-The `test-images/` directory contains sample files for testing:
-- `file_example_JPG_500kB.jpg` - JPEG format test file
-- `file_example_PNG_500kB.png` - PNG format test file  
-- `file_example_TIFF_1MB.tiff` - TIFF format test file
-- `file_example_WEBP_500kB.webp` - WebP format test file
+### Code Style
+- ES6 modules (`type: "module"` in package.json)
+- Async/await for all I/O operations
+- JSDoc type annotations throughout
+- Single responsibility per module
 
-Use these files to test new features, validate processing pipeline changes, and verify format support.
+### Testing Requirements
+- Write tests for new features
+- Mock external dependencies (Sharp, fs)
+- Test error scenarios
+- Verify parallel processing behavior
 
-## Notes for AI Agents
-- This tool processes images using the Sharp library for high-performance operations
-- The codebase follows ES modules (type: "module" in package.json)
-- Both CLI and programmatic interfaces share the same core processing functions
-- Configuration is designed to be layered and overrideable at multiple levels
-- Use the test-images/ directory for safe testing without needing external files
+### Common Modifications
+
+**Add Image Format**:
+1. Update `SUPPORTED_FORMATS` in constants.js
+2. Add preprocessing if needed (like HEIC)
+3. Write format-specific tests
+4. Update documentation
+
+**Add CLI Option**:
+1. Add to Commander in cli.js
+2. Create validation function if needed
+3. Update DEFAULT_CONFIG
+4. Add option tests
+
+**Improve Performance**:
+1. Profile with large batches
+2. Consider memory vs speed tradeoffs
+3. Test concurrency limits
+4. Benchmark before/after
+
+## AI Agent Tips
+
+1. **Use the test suite**: Run `npm test` frequently
+2. **Check types**: Run `npm run typecheck` 
+3. **Test parallelism**: Use `--concurrency` flag
+4. **Mock carefully**: See existing test patterns
+5. **Handle errors**: Ensure batch processing continues
+6. **Document changes**: Update JSDoc annotations
+
+## Resources
+
+- [Sharp docs](https://sharp.pixelplumbing.com/)
+- [AVIF spec](https://aomediacodec.github.io/av1-avif/)
+- [heic-convert](https://github.com/catdad-experiments/heic-convert)
+- [Commander.js](https://github.com/tj/commander.js/)
