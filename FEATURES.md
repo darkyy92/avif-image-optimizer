@@ -10,19 +10,21 @@ This file contains potential features and enhancements for avif-image-optimizer,
 - [ ] **Progress bar** for batch operations using a simple CLI progress library
 - [x] **JSON output mode** (`--json`) - Output statistics as JSON for scripting
 - [x] **Force overwrite** (`--force`) - Skip confirmation when output files exist
-- [ ] **Input validation** - Better error messages for invalid quality/effort values
+- [x] **Input validation** - Comprehensive validation with helpful error messages
+- [x] **Parallel processing** (`--concurrency`) - Multi-core batch processing
 
 ### Output & Statistics
 - [ ] **CSV export** of conversion statistics
 - [ ] **Before/after image comparison** in terminal (using image-to-ascii)
 - [ ] **File size histogram** - Visual representation of size savings
-- [ ] **Processing time tracking** and reporting
+- [x] **Processing time tracking** - Detailed timing for each file and batch total
 
 ### File Handling
-- [ ] **Exclude patterns** (`--exclude "*.thumb.*"`) - Skip certain files
+- [x] **Exclude patterns** (`--exclude "*.thumb.*"`) - Skip files matching patterns
 - [ ] **Date-based filtering** - Only process files newer/older than X days
 - [ ] **Backup mode** - Copy originals to backup directory before conversion
 - [ ] **Resume capability** - Skip already converted files in batch operations
+- [x] **Async file operations** - All file I/O now uses async/await
 
 ## Medium Effort (2-4 hours)
 
@@ -47,20 +49,23 @@ This file contains potential features and enhancements for avif-image-optimizer,
 ## Larger Features (4+ hours)
 
 ### Advanced Processing
-- [ ] **Batch processing with worker threads** for CPU parallelization
+- [x] **Batch processing with parallelization** - Configurable concurrency (1-32)
 - [ ] **Cloud storage support** (S3, Google Cloud Storage)
 - [ ] **Image optimization presets** (web, print, mobile, etc.)
 - [ ] **Content-aware cropping** using Sharp's attention algorithm
+- [ ] **GPU acceleration** for even faster processing
 
 ### Web Integration
 - [ ] **HTML generator** - Create `<picture>` elements with fallbacks
 - [ ] **Build tool plugins** (Webpack, Vite, Rollup)
 - [ ] **GitHub Action** for automated optimization in CI/CD
+- [ ] **CDN integration** - Direct upload to Cloudflare, Fastly, etc.
 
 ### User Interface
 - [ ] **Web UI** for drag-and-drop batch conversion
 - [ ] **Configuration file** support (`.avifrc.json`)
 - [ ] **Interactive mode** with prompts for batch operations
+- [ ] **Desktop app** using Electron or Tauri
 
 ## Implementation Notes
 
@@ -77,7 +82,31 @@ This file contains potential features and enhancements for avif-image-optimizer,
 - Consider backwards compatibility when adding new options
 
 ### Testing Strategy
-- Add CLI option tests using child_process to test actual execution
-- Mock file system operations for unit tests
-- Add integration tests with sample images of different formats
-- Benchmark performance improvements for larger features
+- [x] **Unit tests** - Comprehensive test suite with Jest (60+ tests)
+- [x] **Mock file system** - All file operations properly mocked
+- [x] **Type checking** - JSDoc annotations with TypeScript checking
+- [ ] **Integration tests** with real images of different formats
+- [ ] **Performance benchmarks** - Track performance across versions
+- [ ] **E2E tests** - Full CLI execution tests
+
+## Completed Improvements (v1.1.0)
+
+### Architecture & Code Quality
+- [x] **Modular architecture** - Separated concerns into focused modules
+- [x] **Centralized error handling** - Consistent error messages and recovery
+- [x] **Output formatting module** - Clean separation of display logic
+- [x] **Validation module** - All input validation in one place
+- [x] **Constants module** - Shared configuration and constants
+- [x] **Type safety** - JSDoc annotations throughout codebase
+
+### Performance Enhancements
+- [x] **Parallel processing** - Multi-core support with configurable concurrency
+- [x] **Async file operations** - No blocking I/O operations
+- [x] **Optimized file discovery** - Uses glob's built-in exclusion
+- [x] **Memory efficiency** - Streams and buffers used appropriately
+
+### Developer Experience
+- [x] **Comprehensive tests** - Full test coverage with Jest
+- [x] **Type checking** - `npm run typecheck` for JSDoc validation
+- [x] **Clean exports** - Well-organized programmatic API
+- [x] **Error recovery** - Batch processing continues on errors

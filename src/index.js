@@ -5,31 +5,15 @@
  * to AVIF with intelligent resizing and compression.
  */
 
-import { optimizeImages, convertImageToAvif, analyzeImageFile } from './cli.js';
+import { optimizeImages } from './cli.js';
+import { convertImageToAvif, analyzeImageFile } from './image-processor.js';
+import { DEFAULT_CONFIG, SUPPORTED_FORMATS } from './constants.js';
 
 // Export the main functions for programmatic use
 export { optimizeImages, convertImageToAvif, analyzeImageFile };
 
-// Default configuration
-export const DEFAULT_CONFIG = {
-  maxWidth: 1200,
-  maxHeight: 1200,
-  quality: 60,
-  effort: 6,
-  outputDir: null,
-  preserveOriginal: true,
-  preserveExif: false, // Strip metadata by default for smaller files
-  recursive: false,
-  force: false,
-  verbose: false,
-  quiet: false,
-  json: false,
-  dryRun: false,
-  exclude: []
-};
-
-// Supported formats
-export const SUPPORTED_FORMATS = ['.jpg', '.jpeg', '.png', '.webp', '.tiff', '.tif'];
+// Re-export constants for programmatic API users
+export { DEFAULT_CONFIG, SUPPORTED_FORMATS };
 
 /**
  * Quick optimization with default settings
