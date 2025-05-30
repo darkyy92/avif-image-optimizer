@@ -39,11 +39,12 @@ npm install avif-image-optimizer
 avif-optimizer . --recursive
 
 # This will:
-# - Find all JPG, PNG, WebP, HEIC, etc. in your project
+# - Find all JPG, PNG, WebP, HEIC, etc. in your project (including subdirectories)
 # - Convert them to AVIF (50-90% smaller files)
-# - Limit dimensions to 1200x1200px (perfect for web)
-# - Keep your originals safe (as browser fallbacks)
-# - Use quality 60 (great balance for web)
+# - Limit dimensions to 1200x1200px (perfect for web) - default
+# - Keep your originals safe (as browser fallbacks) - default
+# - Use quality 60 (great balance for web) - default
+# Note: --recursive is the only flag needed, all other settings are optimized defaults!
 
 # Want AVIF-only files? Add --no-preserve-original
 avif-optimizer . --recursive --no-preserve-original
