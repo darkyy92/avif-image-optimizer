@@ -189,7 +189,7 @@ Result: 92.6% size reduction, perfect quality
 
 ## 🌐 Browser Support
 
-AVIF is supported by **93%+ of browsers** (as of 2024):
+AVIF is supported by **95%+ of browsers** (as of 2025):
 
 - ✅ Chrome 85+
 - ✅ Firefox 93+  
