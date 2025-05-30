@@ -1,6 +1,6 @@
 {
   "name": "avif-image-optimizer",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Fast, modern image optimizer that converts JPG, PNG and other formats to AVIF with intelligent resizing and compression",
   "type": "module",
   "main": "src/index.js",
@@ -40,9 +40,10 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "sharp": "^0.33.5",
     "commander": "^12.1.0",
-    "glob": "^11.0.0"
+    "glob": "^11.0.0",
+    "heic-convert": "^2.1.0",
+    "sharp": "^0.33.5"
   },
   "devDependencies": {
     "@types/node": "^22.5.5"

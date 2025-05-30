@@ -6,10 +6,11 @@ import sharp from 'sharp';
 import { glob } from 'glob';
 import { minimatch } from 'minimatch';
 import { program } from 'commander';
+import heicConvert from 'heic-convert';
 
 /**
  * AVIF Image Optimizer
- * Converts JPG, PNG and other image formats to AVIF with optimization and resizing
+ * Converts JPG, PNG, HEIC, HEIF and other image formats to AVIF with optimization and resizing
  */
 
 /**
@@ -233,7 +234,7 @@ const DEFAULT_CONFIG = {
 /**
  * Supported input formats
  */
-const SUPPORTED_FORMATS = ['.jpg', '.jpeg', '.png', '.webp', '.tiff', '.tif'];
+const SUPPORTED_FORMATS = ['.jpg', '.jpeg', '.png', '.webp', '.tiff', '.tif', '.heic', '.heif'];
 
 /**
  * Timing utility functions for high precision measurement
@@ -320,6 +321,32 @@ function getOptimizedDimensions(width, height, maxWidth, maxHeight) {
 }
 
 /**
+ * Convert HEIC/HEIF to intermediate format for Sharp processing
+ */
+async function preprocessHeicImage(inputBuffer, quality = 0.85) {
+  try {
+    verbose('  📱 Converting HEIC/HEIF to JPEG for processing...');
+    
+    const outputBuffer = await heicConvert({
+      buffer: inputBuffer,
+      format: 'JPEG',
+      quality: quality
+    });
+    
+    return {
+      buffer: outputBuffer,
+      success: true
+    };
+  } catch (error) {
+    return {
+      buffer: null,
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
  * Convert a single image file to AVIF
  */
 async function convertImageToAvif(inputPath, config) {
@@ -345,9 +372,31 @@ async function convertImageToAvif(inputPath, config) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
     
-    // Get image metadata and file size
+    // Read input file and handle HEIC preprocessing
     const metadataStartTime = startTimer();
-    const metadata = await sharp(inputPath).metadata();
+    let imageBuffer = fs.readFileSync(inputPath);
+    let sharpInput = inputPath;
+    let wasPreprocessed = false;
+    
+    // Check if HEIC/HEIF file needs preprocessing
+    if (['.heic', '.heif'].includes(inputExt)) {
+      const preprocessResult = await preprocessHeicImage(
+        imageBuffer, 
+        config.quality / 100 // Convert quality scale
+      );
+      
+      if (!preprocessResult.success) {
+        throw new Error(`HEIC preprocessing failed: ${preprocessResult.error}`);
+      }
+      
+      imageBuffer = preprocessResult.buffer;
+      sharpInput = imageBuffer;
+      wasPreprocessed = true;
+      verbose('  📱 HEIC/HEIF preprocessing completed');
+    }
+    
+    // Get image metadata and file size
+    const metadata = await sharp(sharpInput).metadata();
     const metadataTime = endTimer(metadataStartTime);
     
     const { width: originalWidth, height: originalHeight } = metadata;
@@ -369,7 +418,7 @@ async function convertImageToAvif(inputPath, config) {
 
     // Convert to AVIF with optimization
     const conversionStartTime = startTimer();
-    const sharpInstance = sharp(inputPath)
+    const sharpInstance = sharp(sharpInput)
       .resize(newWidth, newHeight, {
         kernel: sharp.kernel.lanczos3,
         withoutEnlargement: true
@@ -420,6 +469,7 @@ async function convertImageToAvif(inputPath, config) {
       newHeight,
       resized: dimensionChange,
       preserveExif: config.preserveExif,
+      wasPreprocessed: wasPreprocessed,
       skipped: false,
       processingTime: totalProcessingTime,
       metadataTime,
@@ -465,8 +515,29 @@ async function analyzeImageFile(inputPath, config) {
     const outputDir = config.outputDir || inputDir;
     const outputPath = path.join(outputDir, `${inputName}.avif`);
 
+    // Handle HEIC preprocessing for analysis (dry run)
     const metadataStartTime = startTimer();
-    const metadata = await sharp(inputPath).metadata();
+    let sharpInput = inputPath;
+    let wasPreprocessed = false;
+    
+    // Check if HEIC/HEIF file needs preprocessing for metadata reading
+    if (['.heic', '.heif'].includes(inputExt)) {
+      let imageBuffer = fs.readFileSync(inputPath);
+      const preprocessResult = await preprocessHeicImage(
+        imageBuffer, 
+        config.quality / 100
+      );
+      
+      if (!preprocessResult.success) {
+        throw new Error(`HEIC preprocessing failed: ${preprocessResult.error}`);
+      }
+      
+      sharpInput = preprocessResult.buffer;
+      wasPreprocessed = true;
+      verbose('  📱 HEIC/HEIF preprocessing completed (dry run)');
+    }
+    
+    const metadata = await sharp(sharpInput).metadata();
     const metadataTime = endTimer(metadataStartTime);
     
     const { width: originalWidth, height: originalHeight } = metadata;
@@ -504,6 +575,7 @@ async function analyzeImageFile(inputPath, config) {
       sizeSavings: parseFloat(sizeSavings),
       dimensionChange: dimensionChange !== '',
       preserveExif: config.preserveExif,
+      wasPreprocessed: wasPreprocessed,
       processingTime: totalProcessingTime,
       metadataTime
     };
@@ -698,7 +770,7 @@ async function optimizeImages(input, options) {
 // CLI Setup
 program
   .name('avif-image-optimizer')
-  .description('Convert JPG, PNG and other image formats to AVIF with intelligent optimization')
+  .description('Convert JPG, PNG, HEIC, HEIF and other image formats to AVIF with intelligent optimization')
   .version('1.0.0')
   .argument('<input>', 'Input image file, directory, or glob pattern')
   .option('-w, --max-width <pixels>', 'Maximum width in pixels', (value) => validateNumericRange(value, 1, 50000, 'Max width', ['--max-width 800', '--max-width 1200', '--max-width 1920']), DEFAULT_CONFIG.maxWidth)

@@ -1,13 +1,13 @@
 # AVIF Image Optimizer
 
-> Fast, modern image optimizer that converts JPG, PNG and other formats to AVIF with intelligent resizing and compression.
+> Fast, modern image optimizer that converts JPG, PNG, HEIC, HEIF and other formats to AVIF with intelligent resizing and compression.
 
 [![npm version](https://badge.fury.io/js/avif-image-optimizer.svg)](https://badge.fury.io/js/avif-image-optimizer)
 [![Node.js CI](https://github.com/darkyy92/avif-image-optimizer/workflows/Node.js%20CI/badge.svg)](https://github.com/darkyy92/avif-image-optimizer/actions)
 
 ## ✨ Features
 
-- 🖼️ **Multi-format Support**: JPG, PNG, WebP, TIFF → AVIF conversion
+- 🖼️ **Multi-format Support**: JPG, PNG, HEIC, HEIF, WebP, TIFF → AVIF conversion
 - 📏 **Smart Resizing**: Intelligent resizing with aspect ratio preservation (never upscales)
 - 🎯 **Quality Control**: Configurable quality settings optimized for web use
 - 📁 **Batch Processing**: Process single files, directories, or glob patterns
@@ -91,6 +91,9 @@ avif-optimizer <input> [options]
 # Convert single file with high quality
 avif-optimizer hero-image.jpg --quality 85
 
+# Convert iPhone photos (HEIC) to AVIF
+avif-optimizer iphone-photo.heic --quality 80
+
 # Convert directory recursively with size limit
 avif-optimizer ./photos --recursive --max-width 1920
 
@@ -154,6 +157,8 @@ const results = await batchConvert([
 |--------------|-----------|-------|
 | JPEG | `.jpg`, `.jpeg` | Most common web format |
 | PNG | `.png` | Lossless, transparency support |
+| HEIC | `.heic` | Apple's modern format (iPhone photos) |
+| HEIF | `.heif` | High Efficiency Image Format |
 | WebP | `.webp` | Modern format, good compression |
 | TIFF | `.tiff`, `.tif` | High-quality, uncompressed |
 
@@ -294,6 +299,15 @@ For very large images:
 NODE_OPTIONS="--max-old-space-size=4096" avif-optimizer huge-image.tif
 ```
 
+### HEIC/HEIF Processing Performance
+
+HEIC and HEIF files require preprocessing before conversion to AVIF:
+
+- **Processing time**: HEIC/HEIF files take longer to process due to pure JavaScript decoding
+- **Memory usage**: May require more memory for large HEIC files (especially from newer iPhones)
+- **Quality**: No quality loss during preprocessing - files are converted to JPEG intermediary format before AVIF conversion
+- **Compatibility**: Works with all HEIC/HEIF files including those from iPhones, modern cameras, and other devices
+
 ### Permission Errors
 
 ```bash
@@ -306,7 +320,7 @@ node ./node_modules/avif-image-optimizer/src/cli.js
 
 ## 🔮 Roadmap
 
-- [ ] **HEIC/HEIF Support** - Convert iPhone photos
+- [x] **HEIC/HEIF Support** - Convert iPhone photos
 - [ ] **Batch Processing UI** - Web interface for bulk conversion
 - [ ] **Progressive AVIF** - Generate multiple sizes for responsive images
 - [ ] **Metadata Preservation** - Keep EXIF data when needed
