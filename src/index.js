@@ -18,6 +18,7 @@ export const DEFAULT_CONFIG = {
   effort: 6,
   outputDir: null,
   preserveOriginal: true,
+  preserveExif: false, // Strip metadata by default for smaller files
   recursive: false,
   force: false,
   verbose: false,

@@ -12,6 +12,206 @@ import { program } from 'commander';
  * Converts JPG, PNG and other image formats to AVIF with optimization and resizing
  */
 
+/**
+ * Validation Functions
+ */
+
+/**
+ * Validate numeric range with helpful error messages
+ */
+function validateNumericRange(value, min, max, paramName, examples = []) {
+  const num = parseInt(value);
+  
+  if (isNaN(num)) {
+    console.error(`❌ Error: ${paramName} must be a number`);
+    if (examples.length > 0) {
+      console.error(`   Examples: ${examples.join(', ')}`);
+    }
+    process.exit(1);
+  }
+  
+  if (num < min || num > max) {
+    console.error(`❌ Error: ${paramName} must be between ${min} and ${max}`);
+    console.error(`   Provided: ${num}`);
+    if (examples.length > 0) {
+      console.error(`   Examples: ${examples.join(', ')}`);
+    }
+    process.exit(1);
+  }
+  
+  return num;
+}
+
+/**
+ * Validate quality parameter (1-100)
+ */
+function validateQuality(value) {
+  return validateNumericRange(
+    value, 
+    1, 
+    100, 
+    'Quality', 
+    ['--quality 60', '--quality 80', '--quality 90']
+  );
+}
+
+/**
+ * Validate effort parameter (1-10)
+ */
+function validateEffort(value) {
+  return validateNumericRange(
+    value, 
+    1, 
+    10, 
+    'Effort', 
+    ['--effort 4', '--effort 6', '--effort 8']
+  );
+}
+
+/**
+ * Validate that input path exists
+ */
+function validateInputExists(inputPath) {
+  let normalizedPath = inputPath;
+  
+  // Handle glob patterns - check if the base directory exists
+  if (inputPath.includes('*') || inputPath.includes('?') || inputPath.includes('[')) {
+    // Extract base directory from glob pattern
+    const parts = inputPath.split(path.sep);
+    let basePath = '';
+    
+    for (const part of parts) {
+      if (part.includes('*') || part.includes('?') || part.includes('[')) {
+        break;
+      }
+      basePath = basePath ? path.join(basePath, part) : part;
+    }
+    
+    normalizedPath = basePath || '.';
+  }
+  
+  // Resolve relative paths
+  const resolvedPath = path.resolve(normalizedPath);
+  
+  try {
+    const stats = fs.statSync(resolvedPath);
+    return { exists: true, isDirectory: stats.isDirectory(), path: resolvedPath };
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      console.error(`❌ Error: Input path does not exist`);
+      console.error(`   Path: ${resolvedPath}`);
+      console.error(`   Original input: ${inputPath}`);
+      console.error(`\n   💡 Suggestions:`);
+      console.error(`   • Check if the path is spelled correctly`);
+      console.error(`   • Use quotes around paths with spaces: "my folder/image.jpg"`);
+      console.error(`   • For glob patterns, ensure the base directory exists`);
+      console.error(`   • Use relative paths from current directory or absolute paths`);
+      process.exit(1);
+    } else {
+      console.error(`❌ Error: Cannot access input path: ${error.message}`);
+      console.error(`   Path: ${resolvedPath}`);
+      process.exit(1);
+    }
+  }
+}
+
+/**
+ * Validate output directory writability
+ */
+function validateOutputDirectory(outputDir) {
+  if (!outputDir) {
+    return; // Will use input directory, validated later
+  }
+  
+  const resolvedPath = path.resolve(outputDir);
+  
+  try {
+    // Check if directory exists
+    if (fs.existsSync(resolvedPath)) {
+      const stats = fs.statSync(resolvedPath);
+      
+      if (!stats.isDirectory()) {
+        console.error(`❌ Error: Output path exists but is not a directory`);
+        console.error(`   Path: ${resolvedPath}`);
+        console.error(`\n   💡 Please specify a directory path for output`);
+        process.exit(1);
+      }
+      
+      // Test writability by trying to create a temporary file
+      const testFile = path.join(resolvedPath, '.avif-optimizer-test');
+      try {
+        fs.writeFileSync(testFile, '');
+        fs.unlinkSync(testFile);
+      } catch (writeError) {
+        console.error(`❌ Error: Cannot write to output directory`);
+        console.error(`   Path: ${resolvedPath}`);
+        console.error(`   Reason: ${writeError.message}`);
+        console.error(`\n   💡 Suggestions:`);
+        console.error(`   • Check directory permissions`);
+        console.error(`   • Try running with appropriate permissions`);
+        console.error(`   • Ensure the directory is not read-only`);
+        process.exit(1);
+      }
+    } else {
+      // Try to create the directory
+      try {
+        fs.mkdirSync(resolvedPath, { recursive: true });
+        // Test writability
+        const testFile = path.join(resolvedPath, '.avif-optimizer-test');
+        fs.writeFileSync(testFile, '');
+        fs.unlinkSync(testFile);
+      } catch (createError) {
+        console.error(`❌ Error: Cannot create output directory`);
+        console.error(`   Path: ${resolvedPath}`);
+        console.error(`   Reason: ${createError.message}`);
+        console.error(`\n   💡 Suggestions:`);
+        console.error(`   • Check parent directory permissions`);
+        console.error(`   • Ensure parent directories exist`);
+        console.error(`   • Try using an absolute path`);
+        process.exit(1);
+      }
+    }
+  } catch (error) {
+    console.error(`❌ Error: Cannot access output directory`);
+    console.error(`   Path: ${resolvedPath}`);
+    console.error(`   Reason: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+/**
+ * Validate dimensions parameters
+ */
+function validateDimensions(width, height) {
+  if (width !== undefined) {
+    const w = validateNumericRange(
+      width, 
+      1, 
+      50000, 
+      'Max width', 
+      ['--max-width 800', '--max-width 1200', '--max-width 1920']
+    );
+    if (w < 1) {
+      console.error(`❌ Error: Max width must be at least 1 pixel`);
+      process.exit(1);
+    }
+  }
+  
+  if (height !== undefined) {
+    const h = validateNumericRange(
+      height, 
+      1, 
+      50000, 
+      'Max height', 
+      ['--max-height 600', '--max-height 1200', '--max-height 1080']
+    );
+    if (h < 1) {
+      console.error(`❌ Error: Max height must be at least 1 pixel`);
+      process.exit(1);
+    }
+  }
+}
+
 // Default configuration
 const DEFAULT_CONFIG = {
   maxWidth: 1200,
@@ -20,6 +220,7 @@ const DEFAULT_CONFIG = {
   effort: 6,
   outputDir: null, // Same directory as input by default
   preserveOriginal: true,
+  preserveExif: false, // Strip metadata by default for smaller files
   recursive: false,
   force: false,
   verbose: false,
@@ -33,6 +234,27 @@ const DEFAULT_CONFIG = {
  * Supported input formats
  */
 const SUPPORTED_FORMATS = ['.jpg', '.jpeg', '.png', '.webp', '.tiff', '.tif'];
+
+/**
+ * Timing utility functions for high precision measurement
+ */
+function startTimer() {
+  return process.hrtime.bigint();
+}
+
+function endTimer(startTime) {
+  const endTime = process.hrtime.bigint();
+  const duration = endTime - startTime;
+  return Number(duration) / 1000000; // Convert nanoseconds to milliseconds
+}
+
+function formatTime(milliseconds) {
+  if (milliseconds < 1000) {
+    return `${milliseconds.toFixed(1)}ms`;
+  } else {
+    return `${(milliseconds / 1000).toFixed(2)}s`;
+  }
+}
 
 // Output mode handling
 let outputMode = 'normal';
@@ -101,6 +323,8 @@ function getOptimizedDimensions(width, height, maxWidth, maxHeight) {
  * Convert a single image file to AVIF
  */
 async function convertImageToAvif(inputPath, config) {
+  const overallStartTime = startTimer();
+  
   try {
     const inputDir = path.dirname(inputPath);
     const inputExt = path.extname(inputPath).toLowerCase();
@@ -122,7 +346,10 @@ async function convertImageToAvif(inputPath, config) {
     }
     
     // Get image metadata and file size
+    const metadataStartTime = startTimer();
     const metadata = await sharp(inputPath).metadata();
+    const metadataTime = endTimer(metadataStartTime);
+    
     const { width: originalWidth, height: originalHeight } = metadata;
     const originalStats = fs.statSync(inputPath);
     const originalSize = originalStats.size;
@@ -141,32 +368,44 @@ async function convertImageToAvif(inputPath, config) {
     verbose(`Optimized dimensions: ${newWidth}x${newHeight}`);
 
     // Convert to AVIF with optimization
-    await sharp(inputPath)
+    const conversionStartTime = startTimer();
+    const sharpInstance = sharp(inputPath)
       .resize(newWidth, newHeight, {
         kernel: sharp.kernel.lanczos3,
         withoutEnlargement: true
-      })
+      });
+    
+    // Conditionally preserve EXIF metadata
+    if (config.preserveExif) {
+      sharpInstance.keepMetadata();
+    }
+    
+    await sharpInstance
       .avif({
         quality: config.quality,
         effort: config.effort,
         chromaSubsampling: '4:2:0'
       })
       .toFile(outputPath);
+    const conversionTime = endTimer(conversionStartTime);
     
     // Get output file size
     const outputStats = fs.statSync(outputPath);
     const outputSize = outputStats.size;
     
-    // Calculate savings
+    // Calculate savings and total processing time
     const sizeSavings = ((originalSize - outputSize) / originalSize * 100).toFixed(1);
     const dimensionChange = originalWidth !== newWidth || originalHeight !== newHeight;
+    const totalProcessingTime = endTimer(overallStartTime);
 
     if (!config.json) {
       const changeInfo = dimensionChange
         ? ` (${originalWidth}x${originalHeight} → ${newWidth}x${newHeight})`
         : '';
-      normal(`✅ ${path.basename(inputPath)} → ${path.basename(outputPath)}`);
+      const metadataInfo = config.preserveExif ? ' with metadata' : '';
+      normal(`✅ ${path.basename(inputPath)} → ${path.basename(outputPath)}${metadataInfo}`);
       normal(`   Size: ${(originalSize / 1024).toFixed(1)}KB → ${(outputSize / 1024).toFixed(1)}KB (${sizeSavings}% savings)${changeInfo}`);
+      normal(`   Processing time: ${formatTime(totalProcessingTime)}`);
     }
 
     return {
@@ -180,12 +419,36 @@ async function convertImageToAvif(inputPath, config) {
       newWidth,
       newHeight,
       resized: dimensionChange,
-      skipped: false
+      preserveExif: config.preserveExif,
+      skipped: false,
+      processingTime: totalProcessingTime,
+      metadataTime,
+      conversionTime
     };
     
   } catch (error) {
-    console.error(`❌ Error converting ${inputPath}:`, error.message);
-    return null;
+    const totalProcessingTime = endTimer(overallStartTime);
+    console.error(`❌ Error converting ${inputPath}`);
+    console.error(`   Reason: ${error.message}`);
+    
+    // Provide specific suggestions based on error type
+    if (error.code === 'ENOENT') {
+      console.error(`   💡 The file was not found or was deleted during processing`);
+    } else if (error.code === 'EACCES') {
+      console.error(`   💡 Permission denied - check file/directory permissions`);
+    } else if (error.code === 'ENOSPC') {
+      console.error(`   💡 No space left on device - free up disk space`);
+    } else if (error.message.includes('Input file contains unsupported image format')) {
+      console.error(`   💡 The file format is not supported or the file is corrupted`);
+    } else if (error.message.includes('Input file is missing')) {
+      console.error(`   💡 The input file was not found`);
+    }
+    
+    return {
+      inputPath,
+      error: error.message,
+      processingTime: totalProcessingTime
+    };
   }
 }
 
@@ -193,6 +456,8 @@ async function convertImageToAvif(inputPath, config) {
  * Analyze a single image file without converting (dry run)
  */
 async function analyzeImageFile(inputPath, config) {
+  const overallStartTime = startTimer();
+  
   try {
     const inputDir = path.dirname(inputPath);
     const inputExt = path.extname(inputPath).toLowerCase();
@@ -200,7 +465,10 @@ async function analyzeImageFile(inputPath, config) {
     const outputDir = config.outputDir || inputDir;
     const outputPath = path.join(outputDir, `${inputName}.avif`);
 
+    const metadataStartTime = startTimer();
     const metadata = await sharp(inputPath).metadata();
+    const metadataTime = endTimer(metadataStartTime);
+    
     const { width: originalWidth, height: originalHeight } = metadata;
     const originalStats = fs.statSync(inputPath);
     const originalSize = originalStats.size;
@@ -218,10 +486,14 @@ async function analyzeImageFile(inputPath, config) {
     const dimensionChange = (originalWidth !== newWidth || originalHeight !== newHeight)
       ? ` (${originalWidth}x${originalHeight} → ${newWidth}x${newHeight})`
       : '';
+    
+    const totalProcessingTime = endTimer(overallStartTime);
 
     if (!config.json) {
-      normal(`🔎 ${path.basename(inputPath)} → ${path.basename(outputPath)}`);
+      const metadataInfo = config.preserveExif ? ' with metadata' : '';
+      normal(`🔎 ${path.basename(inputPath)} → ${path.basename(outputPath)}${metadataInfo}`);
       normal(`   Size: ${(originalSize / 1024).toFixed(1)}KB → ${(estimatedSize / 1024).toFixed(1)}KB (${sizeSavings}% savings)${dimensionChange}`);
+      normal(`   Analysis time: ${formatTime(totalProcessingTime)}`);
     }
 
     return {
@@ -230,11 +502,32 @@ async function analyzeImageFile(inputPath, config) {
       originalSize,
       outputSize: estimatedSize,
       sizeSavings: parseFloat(sizeSavings),
-      dimensionChange: dimensionChange !== ''
+      dimensionChange: dimensionChange !== '',
+      preserveExif: config.preserveExif,
+      processingTime: totalProcessingTime,
+      metadataTime
     };
   } catch (error) {
-    console.error(`❌ Error analyzing ${inputPath}:`, error.message);
-    return null;
+    const totalProcessingTime = endTimer(overallStartTime);
+    console.error(`❌ Error analyzing ${inputPath}`);
+    console.error(`   Reason: ${error.message}`);
+    
+    // Provide specific suggestions based on error type
+    if (error.code === 'ENOENT') {
+      console.error(`   💡 The file was not found or was deleted during processing`);
+    } else if (error.code === 'EACCES') {
+      console.error(`   💡 Permission denied - check file/directory permissions`);
+    } else if (error.message.includes('Input file contains unsupported image format')) {
+      console.error(`   💡 The file format is not supported or the file is corrupted`);
+    } else if (error.message.includes('Input file is missing')) {
+      console.error(`   💡 The input file was not found`);
+    }
+    
+    return {
+      inputPath,
+      error: error.message,
+      processingTime: totalProcessingTime
+    };
   }
 }
 
@@ -290,6 +583,7 @@ function applyExclusions(files, patterns) {
  * Main conversion function
  */
 async function optimizeImages(input, options) {
+  const batchStartTime = startTimer();
   const config = { ...DEFAULT_CONFIG, ...options };
 
   setOutputMode(config);
@@ -317,12 +611,22 @@ async function optimizeImages(input, options) {
 
   if (imageFiles.length === 0) {
     if (!config.json) {
-      normal('⚠️  No supported image files found matching the pattern');
-      normal(`   Supported formats: ${SUPPORTED_FORMATS.join(', ')}`);
+      console.error('❌ No supported image files found matching the pattern');
+      console.error(`   Input: ${input}`);
+      console.error(`   Supported formats: ${SUPPORTED_FORMATS.join(', ')}`);
+      console.error(`\n   💡 Suggestions:`);
+      console.error(`   • Check if the path contains supported image files`);
+      console.error(`   • Use --recursive to search subdirectories`);
+      console.error(`   • Try a different file pattern or directory`);
+      console.error(`   • Verify file extensions match supported formats`);
     } else {
-      console.log(JSON.stringify({ error: 'No supported image files found' }));
+      console.log(JSON.stringify({ 
+        error: 'No supported image files found',
+        input: input,
+        supportedFormats: SUPPORTED_FORMATS 
+      }));
     }
-    return;
+    process.exit(1);
   }
 
   if (!config.json) {
@@ -345,6 +649,8 @@ async function optimizeImages(input, options) {
     }
   }
 
+  const totalBatchTime = endTimer(batchStartTime);
+
   // Summary
   if (results.length > 0 || skippedCount > 0) {
     const totalOriginalSize = results.reduce((sum, r) => sum + r.originalSize, 0);
@@ -353,6 +659,10 @@ async function optimizeImages(input, options) {
       ? ((totalOriginalSize - totalOutputSize) / totalOriginalSize * 100).toFixed(1)
       : '0';
     const resizedCount = results.filter(r => r.resized || r.dimensionChange).length;
+    
+    // Calculate timing statistics
+    const totalProcessingTime = results.reduce((sum, r) => sum + (r.processingTime || 0), 0);
+    const averageProcessingTime = results.length > 0 ? totalProcessingTime / results.length : 0;
 
     if (!config.json) {
       quiet(config.dryRun ? '\n📊 Dry Run Summary' : '\n📊 Conversion Summary');
@@ -365,6 +675,8 @@ async function optimizeImages(input, options) {
       if (results.length > 0) {
         quiet(`💾 Total size savings: ${(totalOriginalSize / 1024).toFixed(1)}KB → ${(totalOutputSize / 1024).toFixed(1)}KB (${totalSavings}%)`);
         quiet(`🌐 Modern format: All images now use AVIF (93%+ browser support)`);
+        quiet(`⏱️  Total batch time: ${formatTime(totalBatchTime)}`);
+        quiet(`⚡ Average time per file: ${formatTime(averageProcessingTime)}`);
       }
     } else {
       const summary = {
@@ -373,7 +685,10 @@ async function optimizeImages(input, options) {
         resized: resizedCount,
         totalOriginalSize,
         totalOutputSize,
-        totalSavings: parseFloat(totalSavings)
+        totalSavings: parseFloat(totalSavings),
+        totalBatchTime,
+        totalProcessingTime,
+        averageProcessingTime
       };
       console.log(JSON.stringify({ summary, results }, null, 2));
     }
@@ -386,10 +701,10 @@ program
   .description('Convert JPG, PNG and other image formats to AVIF with intelligent optimization')
   .version('1.0.0')
   .argument('<input>', 'Input image file, directory, or glob pattern')
-  .option('-w, --max-width <pixels>', 'Maximum width in pixels', (value) => parseInt(value), DEFAULT_CONFIG.maxWidth)
-  .option('-h, --max-height <pixels>', 'Maximum height in pixels', (value) => parseInt(value), DEFAULT_CONFIG.maxHeight)
-  .option('-q, --quality <number>', 'AVIF quality (1-100)', (value) => parseInt(value), DEFAULT_CONFIG.quality)
-  .option('-e, --effort <number>', 'Compression effort (1-10)', (value) => parseInt(value), DEFAULT_CONFIG.effort)
+  .option('-w, --max-width <pixels>', 'Maximum width in pixels', (value) => validateNumericRange(value, 1, 50000, 'Max width', ['--max-width 800', '--max-width 1200', '--max-width 1920']), DEFAULT_CONFIG.maxWidth)
+  .option('-h, --max-height <pixels>', 'Maximum height in pixels', (value) => validateNumericRange(value, 1, 50000, 'Max height', ['--max-height 600', '--max-height 1200', '--max-height 1080']), DEFAULT_CONFIG.maxHeight)
+  .option('-q, --quality <number>', 'AVIF quality (1-100)', validateQuality, DEFAULT_CONFIG.quality)
+  .option('-e, --effort <number>', 'Compression effort (1-10)', validateEffort, DEFAULT_CONFIG.effort)
   .option('-o, --output-dir <path>', 'Output directory (default: same as input)')
   .option('-r, --recursive', 'Search recursively in subdirectories')
   .option('-f, --force', 'Overwrite existing .avif files without prompting')
@@ -400,10 +715,17 @@ program
     return acc;
   }, [])
   .option('--no-preserve-original', 'Delete original files after conversion')
+  .option('--preserve-exif', 'Preserve EXIF metadata in converted images (increases file size)')
   .option('--verbose', 'Enable verbose output')
   .option('--quiet', 'Suppress all output except errors and final summary')
   .action(async (input, options) => {
     try {
+      // Validate input path existence
+      validateInputExists(input);
+      
+      // Validate output directory if specified
+      validateOutputDirectory(options.outputDir);
+      
       await optimizeImages(input, {
         maxWidth: options.maxWidth,
         maxHeight: options.maxHeight,
@@ -411,6 +733,7 @@ program
         effort: options.effort,
         outputDir: options.outputDir,
         preserveOriginal: options.preserveOriginal,
+        preserveExif: options.preserveExif || DEFAULT_CONFIG.preserveExif,
         recursive: options.recursive,
         force: options.force,
         verbose: options.verbose,
@@ -437,6 +760,7 @@ Examples:
   $ avif-optimizer image.jpg --quiet
   $ avif-optimizer ./images --dry-run
   $ avif-optimizer ./images --exclude "*.thumb.*"
+  $ avif-optimizer ./images --preserve-exif
   $ avif-optimizer ./images --json > report.json
 
 Supported formats: ${SUPPORTED_FORMATS.join(', ')}
