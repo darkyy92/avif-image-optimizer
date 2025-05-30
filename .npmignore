@@ -5,6 +5,14 @@ sample-images/
 *.test.png
 *.test.avif
 
+# Internal development files  
+.claude/
+AGENTS.md
+CLAUDE.md
+FEATURES.md
+manual-issues-sync/
+codex-setup.sh
+
 # Documentation assets
 docs/
 examples/
