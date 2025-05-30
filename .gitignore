@@ -85,8 +85,7 @@ temp/
 ehthumbs.db
 Thumbs.db
 
-# Test images (for local development)
-test-images/
+# Sample images (for local development)
 sample-images/
 *.test.jpg
 *.test.png
