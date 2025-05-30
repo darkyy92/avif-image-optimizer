@@ -98,6 +98,9 @@ avif-optimizer hero-image.jpg --quality 85
 # Convert iPhone photos (HEIC) to AVIF
 avif-optimizer iphone-photo.heic --quality 80
 
+# Convert HEIF files to AVIF
+avif-optimizer camera-photo.heif --quality 85
+
 # Convert directory recursively with size limit
 avif-optimizer ./photos --recursive --max-width 1920
 
