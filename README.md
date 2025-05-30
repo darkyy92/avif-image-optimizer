@@ -42,8 +42,11 @@ avif-optimizer . --recursive
 # - Find all JPG, PNG, WebP, HEIC, etc. in your project
 # - Convert them to AVIF (50-90% smaller files)
 # - Limit dimensions to 1200x1200px (perfect for web)
-# - Keep your originals safe
+# - Keep your originals safe (as browser fallbacks)
 # - Use quality 60 (great balance for web)
+
+# Want AVIF-only files? Add --no-preserve-original
+avif-optimizer . --recursive --no-preserve-original
 ```
 
 **Other common tasks:**
