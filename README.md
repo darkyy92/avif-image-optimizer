@@ -33,12 +33,23 @@ npm install avif-image-optimizer
 
 ### Basic Usage
 
+**Most Common: Optimize all images in a web project**
+```bash
+# In your project root - optimizes all images with web-friendly defaults
+avif-optimizer . --recursive
+
+# This will:
+# - Find all JPG, PNG, WebP, HEIC, etc. in your project
+# - Convert them to AVIF (50-90% smaller files)
+# - Limit dimensions to 1200x1200px (perfect for web)
+# - Keep your originals safe
+# - Use quality 60 (great balance for web)
+```
+
+**Other common tasks:**
 ```bash
 # Convert a single image
 avif-optimizer photo.jpg
-
-# Convert all images in a directory
-avif-optimizer ./images --recursive
 
 # Convert with custom quality
 avif-optimizer photo.png --quality 80
@@ -60,6 +71,33 @@ If your project still uses CommonJS modules, use a dynamic import:
 
 ```javascript
 const { optimizeToAvif } = await import('avif-image-optimizer');
+```
+
+## 🌐 Perfect for Web Projects
+
+This tool is designed with web developers in mind. The defaults are specifically chosen for optimal web performance:
+
+- **1200x1200px max dimensions**: Covers most responsive image needs while keeping file sizes manageable
+- **Quality 60**: Excellent visual quality with significant file size reduction
+- **AVIF format**: 50-90% smaller than JPEG/PNG with better quality
+- **Preserves originals**: Safe to run on your source files
+- **Parallel processing**: Converts your entire project quickly
+
+**One command to optimize your entire web project:**
+```bash
+cd your-web-project
+avif-optimizer . --recursive
+```
+
+That's it! All your images are now optimized for the modern web.
+
+**Pro tip:** Create an alias for your most common use:
+```bash
+# Add to your .bashrc or .zshrc
+alias optimize-images='avif-optimizer . --recursive'
+
+# Then just run:
+optimize-images
 ```
 
 ## 📖 Usage
