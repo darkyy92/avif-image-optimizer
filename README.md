@@ -80,7 +80,7 @@ This tool is designed with web developers in mind. The defaults are specifically
 - **1200x1200px max dimensions**: Covers most responsive image needs while keeping file sizes manageable
 - **Quality 60**: Excellent visual quality with significant file size reduction
 - **AVIF format**: 50-90% smaller than JPEG/PNG with better quality
-- **Preserves originals**: Safe to run on your source files
+- **Preserves originals**: Safe to run on your source files (keeps JPEGs as fallbacks for older browsers)
 - **Parallel processing**: Converts your entire project quickly
 
 **One command to optimize your entire web project:**
@@ -171,6 +171,12 @@ avif-optimizer ./large-gallery --recursive --concurrency 16
 
 # Process with limited parallelism (good for shared systems)
 avif-optimizer ./photos --recursive --concurrency 4
+
+# Convert and delete originals (AVIF-only, no fallbacks)
+avif-optimizer ./images --recursive --no-preserve-original
+
+# Safe way: test with dry-run first
+avif-optimizer ./images --recursive --no-preserve-original --dry-run
 ```
 
 ### Programmatic API
@@ -266,6 +272,8 @@ AVIF is supported by **95%+ of browsers** (as of 2025):
 
 ### Implementation in HTML
 
+Since the tool preserves your original files by default, you can use the modern `<picture>` element for progressive enhancement:
+
 ```html
 <picture>
   <source srcset="image.avif" type="image/avif">
@@ -273,6 +281,8 @@ AVIF is supported by **95%+ of browsers** (as of 2025):
   <img src="image.jpg" alt="Fallback for older browsers">
 </picture>
 ```
+
+This ensures maximum compatibility while serving optimized AVIF to modern browsers. If you want AVIF-only files (no fallbacks), use the `--no-preserve-original` flag.
 
 ## 🛠️ Advanced Usage
 
