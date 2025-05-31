@@ -132,6 +132,25 @@ avif-optimizer <input> [options]
 | `--concurrency` | `-c` | Number of parallel conversions (1-32) | CPU cores |
 | `--generate-report` | | Generate markdown and JSON conversion reports | false |
 
+### Default Exclusions
+
+The optimizer automatically excludes common web assets that shouldn't be converted to AVIF:
+
+**Excluded Directories:**
+- `node_modules/`, `.git/`, `dist/`, `build/`, `.cache/`
+- `.next/`, `.nuxt/`, `.output/` (framework build outputs)
+- `vendor/`, `bower_components/`, `coverage/`
+
+**Excluded Files:**
+- **Favicons**: `favicon.ico`, `favicon*.png`
+- **Touch Icons**: `apple-touch-icon*.png`
+- **PWA Icons**: `icon-*.png`, `maskable-icon*.png`, `android-chrome-*.png`
+- **Social Media**: `og-image.png`, `twitter-image.png`, `opengraph-image.jpg`
+- **Splash Screens**: `splash-*.png`, `launch-*.png`
+- **Other**: SVG files (`logo.svg`, `sprite.svg`)
+
+These exclusions ensure that essential web assets remain in their original format for compatibility. You can override or add to these exclusions using the `--exclude` option.
+
 #### Examples
 
 ```bash

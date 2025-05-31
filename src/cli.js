@@ -23,7 +23,7 @@ import {
   COLORS,
   OUTPUT_MODES
 } from './output-formatter.js';
-import { DEFAULT_CONFIG, SUPPORTED_FORMATS } from './constants.js';
+import { DEFAULT_CONFIG, SUPPORTED_FORMATS, DEFAULT_EXCLUDED_DIRS, DEFAULT_EXCLUDED_FILES } from './constants.js';
 import {
   validateNumericRange,
   validateQuality,
@@ -51,9 +51,15 @@ import { generateReports } from './report-generator.js';
  * Find supported image files based on pattern with exclusions
  */
 async function findImageFilesWithExclusions(pattern, recursive, excludePatterns = []) {
+  // Combine default exclusions with user-provided exclusions
+  const allExcludePatterns = [
+    ...DEFAULT_EXCLUDED_FILES,
+    ...excludePatterns
+  ];
+  
   // Process exclude patterns to handle both full paths and basenames
   const processedExcludes = [];
-  excludePatterns.forEach(pattern => {
+  allExcludePatterns.forEach(pattern => {
     processedExcludes.push(pattern);
     // If pattern doesn't contain path separator, also add as a recursive pattern
     if (!pattern.includes('/')) {
@@ -62,7 +68,7 @@ async function findImageFilesWithExclusions(pattern, recursive, excludePatterns 
   });
   
   const globOptions = { 
-    ignore: ['node_modules/**', '.git/**', ...processedExcludes],
+    ignore: [...DEFAULT_EXCLUDED_DIRS, ...processedExcludes],
     nodir: true 
   };
   
@@ -82,33 +88,23 @@ async function findImageFilesWithExclusions(pattern, recursive, excludePatterns 
   
   // Calculate excluded count by comparing with and without exclusions
   let excludedCount = 0;
-  if (excludePatterns.length > 0) {
-    const allFilesOptions = { 
-      ignore: ['node_modules/**', '.git/**'],
-      nodir: true 
-    };
-    const allFiles = await glob(searchPattern, allFilesOptions);
-    const allSupportedFiles = allFiles.filter(file => {
-      const ext = path.extname(file).toLowerCase();
-      return SUPPORTED_FORMATS.includes(ext);
-    });
-    
-    const files = await glob(searchPattern, globOptions);
-    const filteredFiles = files.filter(file => {
-      const ext = path.extname(file).toLowerCase();
-      return SUPPORTED_FORMATS.includes(ext);
-    });
-    
-    excludedCount = allSupportedFiles.length - filteredFiles.length;
-    return { files: filteredFiles, excludedCount };
-  }
+  // Always calculate excluded count to show default exclusions too
+  const minimalIgnoreOptions = { 
+    nodir: true 
+  };
+  const allFiles = await glob(searchPattern, minimalIgnoreOptions);
+  const allSupportedFiles = allFiles.filter(file => {
+    const ext = path.extname(file).toLowerCase();
+    return SUPPORTED_FORMATS.includes(ext);
+  });
   
-  // No exclusions - just get the files
   const files = await glob(searchPattern, globOptions);
   const filteredFiles = files.filter(file => {
     const ext = path.extname(file).toLowerCase();
     return SUPPORTED_FORMATS.includes(ext);
   });
+  
+  excludedCount = allSupportedFiles.length - filteredFiles.length;
   
   return { files: filteredFiles, excludedCount };
 }

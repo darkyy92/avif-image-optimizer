@@ -63,3 +63,71 @@ export const SUPPORTED_FORMATS = [
   '.heic', 
   '.heif'
 ];
+
+/**
+ * Default directories to exclude from image processing
+ * @constant {string[]}
+ */
+export const DEFAULT_EXCLUDED_DIRS = [
+  'node_modules/**',
+  '.git/**',
+  'dist/**',
+  'build/**',
+  '.cache/**',
+  '.next/**',
+  'out/**',
+  'coverage/**',
+  '.nuxt/**',
+  '.output/**',
+  'vendor/**',
+  'bower_components/**'
+];
+
+/**
+ * Default file patterns to exclude from image processing
+ * Common web assets that shouldn't be converted to AVIF
+ * @constant {string[]}
+ */
+export const DEFAULT_EXCLUDED_FILES = [
+  // Favicons
+  'favicon.ico',
+  'favicon*.png',
+  'favicon-*.png',
+  
+  // Apple touch icons
+  'apple-touch-icon*.png',
+  'apple-touch-icon-*.png',
+  
+  // PWA and app icons
+  'icon-*.png',
+  'icons-*.png',
+  'maskable-icon*.png',
+  'pwa-*.png',
+  'manifest-icon-*.png',
+  'android-chrome-*.png',
+  'mstile-*.png',
+  
+  // Social media and Open Graph images
+  'og-image.png',
+  'og-image.jpg',
+  'twitter-image.png',
+  'twitter-image.jpg',
+  'opengraph-image.png',
+  'opengraph-image.jpg',
+  'social-*.png',
+  'social-*.jpg',
+  
+  // Browser config icons
+  'browserconfig.xml',
+  'safari-pinned-tab.svg',
+  
+  // Splash screens
+  'splash-*.png',
+  'launch-*.png',
+  'apple-splash-*.png',
+  
+  // Other common patterns
+  'logo.svg',
+  'sprite.svg',
+  'sprites.svg'
+];
