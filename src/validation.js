@@ -25,7 +25,7 @@ import { displayValidationError } from './output-formatter.js';
  * const quality = validateNumericRange('80', 1, 100, 'Quality', ['--quality 60']);
  */
 export function validateNumericRange(value, min, max, paramName, examples = []) {
-  const num = parseInt(value);
+  const num = parseInt(String(value));
   
   if (isNaN(num)) {
     displayValidationError(`${paramName} must be a number`, {

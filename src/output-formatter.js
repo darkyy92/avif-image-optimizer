@@ -197,10 +197,20 @@ export function displayHeader(config) {
  * @param {string} result.outputPath - Output file path
  * @param {boolean} [result.skipped] - Whether file was skipped
  * @param {string} [result.error] - Error message if failed
+ * @param {string} [result.errorCode] - Error code if failed
  * @param {number} [result.originalSize] - Original file size
  * @param {number} [result.outputSize] - Output file size
  * @param {number} [result.sizeSavings] - Size savings percentage
  * @param {number} [result.processingTime] - Processing time in ms
+ * @param {number} [result.metadataTime] - Metadata read time in ms
+ * @param {number} [result.conversionTime] - Conversion time in ms
+ * @param {boolean} [result.resized] - Whether the image was resized
+ * @param {boolean} [result.dimensionChange] - Whether dimensions changed (dry run)
+ * @param {boolean} [result.wasPreprocessed] - Whether HEIC preprocessing was required
+ * @param {number} [result.originalWidth] - Original width in pixels
+ * @param {number} [result.originalHeight] - Original height in pixels
+ * @param {number} [result.newWidth] - New width in pixels
+ * @param {number} [result.newHeight] - New height in pixels
  * @param {Object} config - Configuration object
  * @param {boolean} config.dryRun - Whether in dry run mode
  * @param {boolean} config.preserveExif - Whether EXIF was preserved

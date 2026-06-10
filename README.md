@@ -77,6 +77,34 @@ If your project still uses CommonJS modules, use a dynamic import:
 const { optimizeToAvif } = await import('avif-image-optimizer');
 ```
 
+#### Buffer API (no filesystem access)
+
+For server-side code that works with in-memory images — e.g. a Next.js upload
+route — use `convertBufferToAvif`. It takes a Buffer and returns the AVIF as a
+Buffer, with automatic HEIC/HEIF detection (iPhone photos) and resizing:
+
+```javascript
+import { convertBufferToAvif, isHeicBuffer } from 'avif-image-optimizer';
+
+// e.g. in a Next.js route handler
+const inputBuffer = Buffer.from(await file.arrayBuffer());
+
+const result = await convertBufferToAvif(inputBuffer, {
+  maxDimension: 1600, // shorthand for maxWidth + maxHeight
+  quality: 60
+});
+
+result.buffer; // AVIF as Buffer — upload to S3, store in DB, send as response
+result.width; // output dimensions (never upscaled)
+result.wasPreprocessed; // true if the input was HEIC/HEIF (e.g. iPhone upload)
+```
+
+Options: `maxWidth`, `maxHeight`, `maxDimension`, `quality`, `effort`,
+`preserveExif` (all optional, same defaults as the CLI). `isHeicBuffer(buffer)`
+is also exported if you only need HEIC/HEIF detection. Note: unlike the
+file-based API, `convertBufferToAvif` **throws** on invalid input or
+conversion failure instead of returning an error object.
+
 ## 🌐 Perfect for Web Projects
 
 This tool is designed with web developers in mind. The defaults are specifically chosen for optimal web performance:

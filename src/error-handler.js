@@ -59,7 +59,7 @@ const ERROR_SUGGESTIONS = {
 
 /**
  * Determine error type from error object
- * @param {Error} error - The error object
+ * @param {Error & {code?: string}} error - The error object
  * @returns {string} Error type constant from ERROR_TYPES enum
  * @example
  * const error = new Error('ENOENT: no such file');
@@ -219,7 +219,7 @@ export function isRecoverableError(error) {
  * );
  */
 export function createError(message, errorType, context = {}) {
-  const error = new Error(message);
+  const error = /** @type {Error & {type: string, code: string, context: Object}} */ (new Error(message));
   error.type = errorType;
   error.code = errorType; // Also set code for consistency
   error.context = context;

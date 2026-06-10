@@ -191,7 +191,7 @@ async function optimizeImages(input, options) {
             `${path.basename(file, path.extname(file))}.avif`
           ),
           error: error.message,
-          errorCode: error.code
+          errorCode: /** @type {Error & {code?: string}} */ (error).code
         };
         displayFileProgress(errorResult, config);
       }

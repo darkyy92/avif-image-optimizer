@@ -22,6 +22,7 @@ import {
   createError,
   createTimedErrorResponse
 } from './error-handler.js';
+import { DEFAULT_CONFIG } from './constants.js';
 
 /**
  * Timing utility functions for high precision measurement
@@ -117,6 +118,164 @@ async function preprocessHeicImage(inputBuffer, quality = 0.85) {
 }
 
 /**
+ * Known HEIC/HEIF brand identifiers found in the ISO BMFF "ftyp" box
+ * @constant {string[]}
+ * @private
+ */
+const HEIC_BRANDS = [
+  'heic', 'heix', 'hevc', 'hevx',
+  'heim', 'heis', 'hevm', 'hevs',
+  'mif1', 'msf1'
+];
+
+/**
+ * Detect whether a buffer contains HEIC/HEIF image data
+ *
+ * Checks the ISO BMFF "ftyp" box magic bytes: 'ftyp' at byte offset 4
+ * followed by a known HEIC/HEIF brand at byte offset 8.
+ *
+ * @param {Buffer} buffer - Buffer to inspect
+ * @returns {boolean} True if the buffer looks like a HEIC/HEIF image
+ * @example
+ * if (isHeicBuffer(uploadedBuffer)) {
+ *   console.log('iPhone HEIC photo detected');
+ * }
+ */
+export function isHeicBuffer(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 12) {
+    return false;
+  }
+
+  if (buffer.toString('ascii', 4, 8) !== 'ftyp') {
+    return false;
+  }
+
+  const brand = buffer.toString('ascii', 8, 12);
+  return HEIC_BRANDS.includes(brand);
+}
+
+/**
+ * Convert an in-memory image buffer to an AVIF buffer
+ *
+ * Designed for server-side use cases (e.g. Next.js upload routes) where
+ * images should be converted without touching the filesystem. Accepts the
+ * same formats as the file API (JPG, PNG, WebP, TIFF) plus HEIC/HEIF
+ * buffers (e.g. iPhone uploads), which are detected via {@link isHeicBuffer}
+ * and transparently preprocessed with heic-convert. Images are never
+ * upscaled.
+ *
+ * NOTE: Unlike the file-based API (convertImageToAvif), which returns an
+ * object with an `error` property on failure, this function THROWS on
+ * invalid input or conversion failure.
+ *
+ * @param {Buffer} inputBuffer - Input image buffer
+ * @param {Object} [options={}] - Conversion options
+ * @param {number} [options.maxWidth] - Maximum width in pixels (default: DEFAULT_CONFIG.maxWidth)
+ * @param {number} [options.maxHeight] - Maximum height in pixels (default: DEFAULT_CONFIG.maxHeight)
+ * @param {number} [options.maxDimension] - Shorthand that sets both maxWidth and maxHeight
+ * @param {number} [options.quality] - AVIF quality 1-100 (default: DEFAULT_CONFIG.quality)
+ * @param {number} [options.effort] - AVIF effort level 0-10 (default: DEFAULT_CONFIG.effort)
+ * @param {boolean} [options.preserveExif] - Preserve EXIF metadata (default: DEFAULT_CONFIG.preserveExif)
+ * @returns {Promise<{buffer: Buffer, width: number, height: number, originalWidth: number, originalHeight: number, originalSize: number, outputSize: number, wasPreprocessed: boolean, resized: boolean, processingTime: number}>} Conversion result with the AVIF buffer
+ * @throws {Error} If the input is not a valid image buffer or conversion fails
+ * @example
+ * const { buffer } = await convertBufferToAvif(uploadBuffer, {
+ *   maxDimension: 1600,
+ *   quality: 60
+ * });
+ */
+export async function convertBufferToAvif(inputBuffer, options = {}) {
+  const overallTimer = createTimer();
+
+  if (!Buffer.isBuffer(inputBuffer) || inputBuffer.length === 0) {
+    throw createError(
+      'Input must be a non-empty Buffer',
+      ERROR_TYPES.INVALID_INPUT
+    );
+  }
+
+  const maxWidth = options.maxWidth ?? options.maxDimension ?? DEFAULT_CONFIG.maxWidth;
+  const maxHeight = options.maxHeight ?? options.maxDimension ?? DEFAULT_CONFIG.maxHeight;
+  const quality = options.quality ?? DEFAULT_CONFIG.quality;
+  const effort = options.effort ?? DEFAULT_CONFIG.effort;
+  const preserveExif = options.preserveExif ?? DEFAULT_CONFIG.preserveExif;
+
+  const originalSize = inputBuffer.length;
+  let sharpInput = inputBuffer;
+  let wasPreprocessed = false;
+
+  // HEIC/HEIF buffers need preprocessing before Sharp can handle them
+  if (isHeicBuffer(inputBuffer)) {
+    const preprocessResult = await preprocessHeicImage(
+      inputBuffer,
+      quality / 100 // Convert quality scale
+    );
+
+    if (!preprocessResult.success) {
+      throw createError(
+        `HEIC preprocessing failed: ${preprocessResult.error}`,
+        ERROR_TYPES.HEIC_PREPROCESSING_FAILED
+      );
+    }
+
+    sharpInput = preprocessResult.buffer;
+    wasPreprocessed = true;
+    verbose('  📱 HEIC/HEIF preprocessing completed');
+  }
+
+  // Read metadata (throws for invalid/garbage buffers)
+  const metadata = await sharp(sharpInput).metadata();
+  const { width: originalWidth, height: originalHeight } = metadata;
+
+  if (!originalWidth || !originalHeight) {
+    throw createError(
+      'Unable to read image dimensions from buffer',
+      ERROR_TYPES.METADATA_ERROR
+    );
+  }
+
+  // Calculate optimized dimensions (never upscale)
+  const { width: targetWidth, height: targetHeight } = getOptimizedDimensions(
+    originalWidth,
+    originalHeight,
+    maxWidth,
+    maxHeight
+  );
+
+  const sharpInstance = sharp(sharpInput)
+    .resize(targetWidth, targetHeight, {
+      kernel: sharp.kernel.lanczos3,
+      withoutEnlargement: true
+    });
+
+  // Conditionally preserve EXIF metadata
+  if (preserveExif) {
+    sharpInstance.keepMetadata();
+  }
+
+  const { data: outputBuffer, info } = await sharpInstance
+    .avif({
+      quality,
+      effort,
+      chromaSubsampling: '4:2:0'
+    })
+    .toBuffer({ resolveWithObject: true });
+
+  return {
+    buffer: outputBuffer,
+    width: info.width,
+    height: info.height,
+    originalWidth,
+    originalHeight,
+    originalSize,
+    outputSize: outputBuffer.length,
+    wasPreprocessed,
+    resized: info.width !== originalWidth || info.height !== originalHeight,
+    processingTime: overallTimer.end()
+  };
+}
+
+/**
  * Convert a single image file to AVIF
  * @param {string} inputPath - Path to input image
  * @param {Object} config - Configuration object
@@ -127,7 +286,7 @@ async function preprocessHeicImage(inputBuffer, quality = 0.85) {
  * @param {?string} config.outputDir - Output directory (null = same as input)
  * @param {boolean} config.preserveExif - Whether to preserve EXIF metadata
  * @param {boolean} config.force - Whether to overwrite existing files
- * @returns {Promise<{inputPath: string, outputPath: string, originalSize: number, outputSize?: number, sizeSavings?: number, originalWidth?: number, originalHeight?: number, newWidth?: number, newHeight?: number, resized?: boolean, wasPreprocessed?: boolean, skipped?: boolean, error?: string, errorCode?: string, processingTime: number, metadataTime?: number, conversionTime?: number}>} Processing result
+ * @returns {Promise<{inputPath: string, outputPath: string, originalSize?: number, outputSize?: number, sizeSavings?: number, originalWidth?: number, originalHeight?: number, newWidth?: number, newHeight?: number, resized?: boolean, preserveExif?: boolean, wasPreprocessed?: boolean, skipped?: boolean, error?: string, errorCode?: string, processingTime?: number, metadataTime?: number, conversionTime?: number}>} Processing result
  * @throws {Error} If preprocessing or conversion fails
  * @example
  * const result = await convertImageToAvif('./photo.jpg', {
@@ -168,6 +327,7 @@ export async function convertImageToAvif(inputPath, config) {
     // Read input file and handle HEIC preprocessing
     const metadataTimer = createTimer();
     let imageBuffer = await fs.readFile(inputPath);
+    /** @type {string|Buffer} */
     let sharpInput = inputPath;
     let wasPreprocessed = false;
     
@@ -282,7 +442,7 @@ export async function convertImageToAvif(inputPath, config) {
  * Analyze a single image file without converting (dry run)
  * @param {string} inputPath - Path to input image
  * @param {Object} config - Configuration object (same as convertImageToAvif)
- * @returns {Promise<{inputPath: string, outputPath: string, originalSize: number, outputSize: number, sizeSavings: number, originalWidth: number, originalHeight: number, newWidth: number, newHeight: number, resized: boolean, dimensionChange: boolean, wasPreprocessed: boolean, processingTime: number, metadataTime: number, error?: string, errorCode?: string}>} Analysis result with estimated output size
+ * @returns {Promise<{inputPath: string, outputPath: string, originalSize?: number, outputSize?: number, sizeSavings?: number, originalWidth?: number, originalHeight?: number, newWidth?: number, newHeight?: number, resized?: boolean, dimensionChange?: boolean, preserveExif?: boolean, wasPreprocessed?: boolean, processingTime?: number, metadataTime?: number, error?: string, errorCode?: string}>} Analysis result with estimated output size
  * @example
  * // Analyze what would happen without actually converting
  * const analysis = await analyzeImageFile('./photo.jpg', config);
@@ -300,6 +460,7 @@ export async function analyzeImageFile(inputPath, config) {
 
     // Handle HEIC preprocessing for analysis (dry run)
     const metadataTimer = createTimer();
+    /** @type {string|Buffer} */
     let sharpInput = inputPath;
     let wasPreprocessed = false;
     

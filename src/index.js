@@ -6,12 +6,15 @@
  */
 
 import { optimizeImages } from './cli.js';
-import { convertImageToAvif, analyzeImageFile } from './image-processor.js';
+import { convertImageToAvif, analyzeImageFile, convertBufferToAvif, isHeicBuffer } from './image-processor.js';
 import { DEFAULT_CONFIG, SUPPORTED_FORMATS } from './constants.js';
 import { generateMarkdownReport, generateJsonReport, generateReports } from './report-generator.js';
 
 // Export the main functions for programmatic use
 export { optimizeImages, convertImageToAvif, analyzeImageFile };
+
+// Export the Buffer-based API (no filesystem access, ideal for upload routes)
+export { convertBufferToAvif, isHeicBuffer };
 
 // Export report generation functions
 export { generateMarkdownReport, generateJsonReport, generateReports };
